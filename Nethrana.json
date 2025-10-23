@@ -1,34 +1,312 @@
 {
   "type": "FeatureCollection",
   "features": [
-    { "type": "Feature", "properties": { "id": "v1", "name": "Nethrana", "type": "village", "population": 2500 }, "geometry": { "type": "Point", "coordinates": [73.3440, 27.7425] } },
-    { "type": "Feature", "properties": { "id": "v2", "name": "Kothari", "type": "village" }, "geometry": { "type": "Point", "coordinates": [73.3365, 27.7438] } },
-    { "type": "Feature", "properties": { "id": "v3", "name": "Rupawas", "type": "village" }, "geometry": { "type": "Point", "coordinates": [73.3515, 27.7412] } },
+    {
+      "type": "Feature",
+      "properties": { "id": "v_nethrana", "name": "Nethrana", "type": "village", "population": 3200 },
+      "geometry": { "type": "Point", "coordinates": [73.3440, 27.7425] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "v_kothari", "name": "Kothari", "type": "village", "population": 1400 },
+      "geometry": { "type": "Point", "coordinates": [73.3365, 27.7438] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "v_rupawas", "name": "Rupawas", "type": "village", "population": 2100 },
+      "geometry": { "type": "Point", "coordinates": [73.3515, 27.7412] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "s_hanumangarh", "name": "Hanumangarh (district center)", "type": "city", "note": "District center (distant)" },
+      "geometry": { "type": "Point", "coordinates": [74.3330, 29.5810] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "s_jaipur", "name": "Jaipur", "type": "city", "note": "State capital (distant)" },
+      "geometry": { "type": "Point", "coordinates": [75.7873, 26.9124] }
+    },
 
-    { "type": "Feature", "properties": { "id": "boundary", "name": "Nethrana Boundary", "type": "boundary" },
-      "geometry": { "type": "Polygon", "coordinates": [[[73.3408,27.7445],[73.3488,27.7445],[73.3488,27.7392],[73.3408,27.7392],[73.3408,27.7445]]] } },
+    { "type": "Feature",
+      "properties": { "id": "boundary_nethrana", "name": "Nethrana Boundary", "type": "boundary" },
+      "geometry": { "type": "Polygon", "coordinates": [[[73.3406,27.7448],[73.3488,27.7448],[73.3488,27.7390],[73.3406,27.7390],[73.3406,27.7448]]] }
+    },
 
-    { "type": "Feature", "properties": { "id": "temple1", "name": "Shiv Mandir", "type": "temple" },
-      "geometry": { "type": "Point", "coordinates": [73.3430,27.7434] } },
-    { "type": "Feature", "properties": { "id": "temple2", "name": "Hanuman Mandir", "type": "temple" },
-      "geometry": { "type": "Point", "coordinates": [73.3455,27.7427] } },
+    { "type": "Feature",
+      "properties": { "id": "road_primary_west_east", "name": "State Route 12 (approx)", "type": "road", "road_class": "primary" },
+      "geometry": { "type": "LineString", "coordinates": [
+        [73.3335,27.7460],
+        [73.3360,27.7450],
+        [73.3385,27.7442],
+        [73.3412,27.7432],
+        [73.3434,27.7426],
+        [73.3456,27.7420],
+        [73.3474,27.7414],
+        [73.3500,27.7406],
+        [73.3545,27.7392]
+      ] }
+    },
 
-    { "type": "Feature", "properties": { "id": "school1", "name": "Govt. Senior Secondary School", "type": "school" },
-      "geometry": { "type": "Point", "coordinates": [73.3452,27.7423] } },
-    { "type": "Feature", "properties": { "id": "clinic1", "name": "Rural Health Clinic", "type": "clinic" },
-      "geometry": { "type": "Point", "coordinates": [73.3458,27.7418] } },
-    { "type": "Feature", "properties": { "id": "market", "name": "Main Bazaar", "type": "shop" },
-      "geometry": { "type": "Point", "coordinates": [73.3446,27.7428] } },
-    { "type": "Feature", "properties": { "id": "pond1", "name": "Gaon ka Talab", "type": "water" },
-      "geometry": { "type": "Polygon", "coordinates": [[[73.3435,27.7426],[73.3443,27.7426],[73.3443,27.7420],[73.3435,27.7420],[73.3435,27.7426]]] } },
+    { "type": "Feature",
+      "properties": { "id": "road_secondary_loop", "name": "Nethrana Loop Road", "type": "road", "road_class": "secondary" },
+      "geometry": { "type": "LineString", "coordinates": [
+        [73.3410,27.7443],
+        [73.3422,27.7439],
+        [73.3434,27.7433],
+        [73.3447,27.7430],
+        [73.3458,27.7426],
+        [73.3464,27.7422],
+        [73.3469,27.7417]
+      ] }
+    },
 
-    { "type": "Feature", "properties": { "id": "road_main", "name": "Main Road", "type": "road" },
-      "geometry": { "type": "LineString", "coordinates": [[73.3412,27.7438],[73.3480,27.7412]] } },
-    { "type": "Feature", "properties": { "id": "house1", "name": "House 1", "type": "house" },
-      "geometry": { "type": "Point", "coordinates": [73.3441,27.7426] } },
-    { "type": "Feature", "properties": { "id": "house2", "name": "House 2", "type": "house" },
-      "geometry": { "type": "Point", "coordinates": [73.3443,27.7422] } },
-    { "type": "Feature", "properties": { "id": "field1", "name": "Wheat Field", "type": "field" },
-      "geometry": { "type": "Polygon", "coordinates": [[[73.3460,27.7430],[73.3470,27.7430],[73.3470,27.7420],[73.3460,27.7420],[73.3460,27.7430]]] } }
+    { "type": "Feature",
+      "properties": { "id": "road_tertiary_link", "name": "Link Road (tertiary)", "type": "road", "road_class": "tertiary" },
+      "geometry": { "type": "LineString", "coordinates": [
+        [73.3425,27.7428],
+        [73.3431,27.7425],
+        [73.3440,27.7422],
+        [73.3448,27.7420],
+        [73.3457,27.7418]
+      ] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "track_field_path", "name": "Field Track", "type": "road", "road_class": "track" },
+      "geometry": { "type": "LineString", "coordinates": [
+        [73.3412,27.7420],
+        [73.3416,27.7418],
+        [73.3420,27.7416],
+        [73.3426,27.7415],
+        [73.3432,27.7414]
+      ] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "pond_main", "name": "Gaon Ka Talab (Main Pond)", "type": "water" },
+      "geometry": { "type": "Polygon", "coordinates": [[[73.3434,27.7426],[73.3442,27.7426],[73.3442,27.7421],[73.3434,27.7421],[73.3434,27.7426]]] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "pond_small", "name": "Small Pond North", "type": "water" },
+      "geometry": { "type": "Polygon", "coordinates": [[[73.3456,27.7435],[73.3461,27.7436],[73.3461,27.7432],[73.3456,27.7430],[73.3456,27.7435]]] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "school_primary", "name": "Govt. Primary School", "type": "school", "levels": ["1-5"] },
+      "geometry": { "type": "Point", "coordinates": [73.3452,27.7423] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "school_secondary", "name": "Senior Secondary School", "type": "school", "levels": ["6-12"] },
+      "geometry": { "type": "Point", "coordinates": [73.3460,27.7420] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "temple_shiv", "name": "Shiv Mandir", "type": "temple" },
+      "geometry": { "type": "Point", "coordinates": [73.3430,27.7436] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "temple_hanuman", "name": "Hanuman Mandir", "type": "temple" },
+      "geometry": { "type": "Point", "coordinates": [73.3455,27.7427] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "clinic_rural", "name": "Rural Health Clinic", "type": "clinic" },
+      "geometry": { "type": "Point", "coordinates": [73.3458,27.7418] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "market_main", "name": "Main Bazaar", "type": "market" },
+      "geometry": { "type": "Point", "coordinates": [73.3446,27.7428] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "well_community", "name": "Community Well", "type": "poi" },
+      "geometry": { "type": "Point", "coordinates": [73.3442,27.7430] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "field_wheat_1", "name": "Wheat Field North", "type": "field" },
+      "geometry": { "type": "Polygon", "coordinates": [[[73.3410,27.7420],[73.3418,27.7420],[73.3418,27.7414],[73.3410,27.7414],[73.3410,27.7420]]] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "field_mustard_1", "name": "Mustard Patch East", "type": "field" },
+      "geometry": { "type": "Polygon", "coordinates": [[[73.3470,27.7435],[73.3478,27.7435],[73.3478,27.7428],[73.3470,27.7428],[73.3470,27.7435]]] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "house_101", "name": "House 101", "type": "house" },
+      "geometry": { "type": "Point", "coordinates": [73.3448,27.7428] }
+    },
+    { "type": "Feature",
+      "properties": { "id": "house_102", "name": "House 102", "type": "house" },
+      "geometry": { "type": "Point", "coordinates": [73.3450,27.7422] }
+    },
+    { "type": "Feature",
+      "properties": { "id": "house_103", "name": "House 103", "type": "house" },
+      "geometry": { "type": "Point", "coordinates": [73.3436,27.7429] }
+    },
+    { "type": "Feature",
+      "properties": { "id": "warehouse_1", "name": "Grain Storage", "type": "building" },
+      "geometry": { "type": "Point", "coordinates": [73.3422,27.7430] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "bridge_1", "name": "Small Bridge on Main Road", "type": "infrastructure" },
+      "geometry": { "type": "Point", "coordinates": [73.3438,27.7424] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "track_to_fields", "name": "Farm Track A", "type": "road", "road_class": "track" },
+      "geometry": { "type": "LineString", "coordinates": [
+        [73.3414,27.7416],
+        [73.3420,27.7411],
+        [73.3426,27.7410],
+        [73.3432,27.7408]
+      ] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "connector_kothari", "name": "Connector Kothari-Nethrana", "type": "road", "road_class": "secondary" },
+      "geometry": { "type": "LineString", "coordinates": [
+        [73.3365,27.7438],
+        [73.3376,27.7436],
+        [73.3389,27.7433],
+        [73.3406,27.7430],
+        [73.3422,27.7427],
+        [73.3438,27.7424]
+      ] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "connector_rupawas", "name": "Connector Rupawas-Nethrana", "type": "road", "road_class": "secondary" },
+      "geometry": { "type": "LineString", "coordinates": [
+        [73.3515,27.7412],
+        [73.3496,27.7416],
+        [73.3478,27.7420],
+        [73.3458,27.7424],
+        [73.3442,27.7426]
+      ] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "village_pond2", "name": "Stepwell Pond", "type": "water" },
+      "geometry": { "type": "Polygon", "coordinates": [[[73.3420,27.7432],[73.3426,27.7432],[73.3426,27.7428],[73.3420,27.7428],[73.3420,27.7432]]] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "school_private", "name": "Shiksha Private School", "type": "school" },
+      "geometry": { "type": "Point", "coordinates": [73.3439,27.7431] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "post_office", "name": "Nethrana Post Office", "type": "poi" },
+      "geometry": { "type": "Point", "coordinates": [73.3444,27.7429] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "bus_stop_main", "name": "Main Bus Stop", "type": "poi" },
+      "geometry": { "type": "Point", "coordinates": [73.3449,27.7419] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "auth_farm_lane", "name": "Agriculture Lane", "type": "road", "road_class": "track" },
+      "geometry": { "type": "LineString", "coordinates": [
+        [73.3468,27.7424],
+        [73.3472,27.7429],
+        [73.3476,27.7433],
+        [73.3480,27.7436]
+      ] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "small_pond_west", "name": "West Pond", "type": "water" },
+      "geometry": { "type": "Polygon", "coordinates": [[[73.3409,27.7430],[73.3413,27.7430],[73.3413,27.7426],[73.3409,27.7426],[73.3409,27.7430]]] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "industrial_zone", "name": "Cottage Industry Zone", "type": "building" },
+      "geometry": { "type": "Point", "coordinates": [73.3465,27.7415] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "road_to_hanumangarh", "name": "Regional Road to Hanumangarh (approx)", "type": "road", "road_class": "primary" },
+      "geometry": { "type": "LineString", "coordinates": [
+        [73.3440,27.7425],
+        [73.3500,27.7500],
+        [73.8000,27.9500],
+        [74.2000,28.3000],
+        [74.3330,29.5810]
+      ] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "road_to_jaipur", "name": "Regional Road to Jaipur (approx)", "type": "road", "road_class": "primary" },
+      "geometry": { "type": "LineString", "coordinates": [
+        [73.3440,27.7425],
+        [73.7000,27.1000],
+        [74.2000,26.9000],
+        [75.2000,26.9200],
+        [75.7873,26.9124]
+      ] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "agri_plot_1", "name": "Panchayat Agriculture Plot", "type": "field" },
+      "geometry": { "type": "Polygon", "coordinates": [[[73.3445,27.7438],[73.3455,27.7438],[73.3455,27.7432],[73.3445,27.7432],[73.3445,27.7438]]] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "temple_small", "name": "Local Hanuman Shrine", "type": "temple" },
+      "geometry": { "type": "Point", "coordinates": [73.3426,27.7439] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "school_ang", "name": "Anganwadi Center", "type": "school" },
+      "geometry": { "type": "Point", "coordinates": [73.3432,27.7434] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "playground", "name": "Community Playground", "type": "poi" },
+      "geometry": { "type": "Polygon", "coordinates": [[[73.3440,27.7430],[73.3444,27.7430],[73.3444,27.7426],[73.3440,27.7426],[73.3440,27.7430]]] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "well_secondary", "name": "Old Well", "type": "poi" },
+      "geometry": { "type": "Point", "coordinates": [73.3425,27.7424] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "campus_poly", "name": "Education Campus (cluster)", "type": "building" },
+      "geometry": { "type": "Polygon", "coordinates": [[[73.3457,27.7429],[73.3464,27.7429],[73.3464,27.7422],[73.3457,27.7422],[73.3457,27.7429]]] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "service_lane", "name": "Service Lane (market area)", "type": "road", "road_class": "tertiary" },
+      "geometry": { "type": "LineString", "coordinates": [
+        [73.3440,27.7430],
+        [73.3445,27.7429],
+        [73.3449,27.7427],
+        [73.3451,27.7426]
+      ] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "greenbelt_south", "name": "Greenbelt South", "type": "field" },
+      "geometry": { "type": "Polygon", "coordinates": [[[73.3458,27.7416],[73.3466,27.7416],[73.3466,27.7408],[73.3458,27.7408],[73.3458,27.7416]]] }
+    },
+
+    { "type": "Feature",
+      "properties": { "id": "rail_placeholder", "name": "Railway (approx)", "type": "railway" },
+      "geometry": { "type": "LineString", "coordinates": [
+        [73.3300,27.7470],
+        [73.3380,27.7450],
+        [73.3460,27.7430],
+        [73.3550,27.7400]
+      ] }
+    }
   ]
 }
