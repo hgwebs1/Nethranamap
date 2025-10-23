@@ -1,188 +1,482 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Nethrana Open Map</title>
-  <link href="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.css" rel="stylesheet"/>
+  <meta charset="utf-8" />
+  <title>Nethrana Map — MapLibre + Carto + Routing + Collapsible Panel</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link href="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.css" rel="stylesheet" />
   <style>
-    html,body{margin:0;height:100%;font-family:Inter,Roboto,Arial,sans-serif;}
-    #map{position:absolute;left:380px;top:0;right:0;bottom:0;}
-    #sidebar{position:absolute;left:0;top:0;bottom:0;width:380px;background:#fff;border-right:1px solid #ddd;
-      padding:10px;overflow:auto;box-sizing:border-box;}
-    h1{margin:0;font-size:18px;}
-    .btn{background:#1a73e8;color:#fff;border:0;padding:7px 10px;border-radius:6px;margin:4px 4px 4px 0;cursor:pointer;}
-    .btn.gray{background:#666;}
-    textarea{width:100%;height:200px;font-family:monospace;font-size:13px;}
+    :root{
+      --panel-w:360px;
+      --accent:#1a73e8;
+      --bg:#ffffff;
+      --muted:#6b7280;
+    }
+    html,body{height:100%;margin:0;font-family:Inter,Roboto,Arial,sans-serif;color:#0f172a;}
+    /* Main map fills remaining area when panel is visible/hidden */
+    #panel { position: absolute; left: 0; top: 0; bottom: 0; width: var(--panel-w); background: linear-gradient(180deg,#fff,#fbfdff);
+             border-right:1px solid #e6eef6; box-sizing:border-box; padding:12px; transition: transform .28s ease; z-index: 3; overflow:auto; }
+    #panel.closed { transform: translateX(calc(-1 * var(--panel-w))); }
+    #map { position: absolute; left: var(--panel-w); top: 0; right: 0; bottom: 0; transition: left .28s ease; }
+    #map.full { left: 0; }
+    .toggler { position: absolute; left: var(--panel-w); top: 12px; transform: translateX(-100%); z-index: 5; }
+    .toggler button { background: var(--accent); color: #fff; border: none; padding: 8px 10px; border-radius: 8px; cursor:pointer; }
+    h1 { margin: 6px 0; font-size: 18px; }
+    p.lead { margin: 6px 0 12px 0; color: var(--muted); font-size: 13px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+    .btn { background: var(--accent); color: #fff; border: none; padding: 8px 10px; border-radius: 8px; cursor:pointer; font-weight:600; }
+    .btn.ghost { background: #f1f5f9; color: #0f172a; border: 1px solid #e6eef6; }
+    label.small { font-size:13px; color:#374151; margin-bottom:6px; display:block; }
+    textarea#featureJson { width:100%; height: 220px; font-family: monospace; font-size:13px; padding:8px; box-sizing:border-box; border-radius:6px; border:1px solid #e6eef6; }
+    .muted { color: var(--muted); font-size:13px; }
+    .control-group { margin-bottom:12px; }
+    .top-controls { position: absolute; right: 12px; top: 12px; z-index: 6; display:flex; gap:8px; }
+    .search { display:flex; gap:8px; background:#fff; padding:6px; border-radius:8px; border:1px solid #e6eef6; align-items:center; box-shadow:0 1px 4px rgba(10,10,10,0.04);}
+    .search input{border:0;outline:none;font-size:14px;width:220px;}
+    .info { font-size:13px; color:#0f172a; margin-top:8px; }
+    footer { margin-top:12px; font-size:12px; color:var(--muted); }
+    @media (max-width:900px){
+      #panel{position:relative;width:100%;height:340px;transform:none;}
+      #map{left:0;top:340px;}
+      .toggler{display:none;}
+    }
   </style>
 </head>
 <body>
-<div id="sidebar">
-  <h1>Nethrana Open Map</h1>
-  <p>Fully open-source Carto raster map + JSON viewer/editor</p>
-  <div>
-    <button class="btn" id="gotoNethrana">Go to Nethrana</button>
-    <button class="btn" id="gotoKothari">Go to Kothari</button>
-    <button class="btn" id="gotoRupawas">Go to Rupawas</button>
-    <button class="btn gray" id="routeBtn">Route to Selected</button>
+
+  <!-- Left collapsible panel -->
+  <div id="panel" class="">
+    <h1>Nethrana Map — Editor</h1>
+    <p class="lead">Click a feature on the map to open/edit its JSON. Draggable start/end markers for routing. Use your OpenRouteService key for real route & ETA.</p>
+
+    <div class="control-group">
+      <label class="small">Quick jump</label>
+      <div class="row">
+        <button id="btnNethrana" class="btn">Go to Nethrana</button>
+        <button id="btnKothari" class="btn">Go to Kothari</button>
+        <button id="btnRupawas" class="btn">Go to Rupawas</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label class="small">Routing controls</label>
+      <div class="row">
+        <button id="btnSetStart" class="btn ghost">Set Start (drag marker)</button>
+        <button id="btnSetEnd" class="btn ghost">Set End (drag marker)</button>
+        <button id="btnGetRoute" class="btn">Get Route</button>
+        <button id="btnClearRoute" class="btn ghost">Clear Route</button>
+      </div>
+      <div class="muted" style="margin-top:6px;">
+        ORS API key (optional — if blank, draws straight line): <br/>
+        <input id="orsKey" type="text" placeholder="Paste OpenRouteService API key" style="width:100%;padding:8px;border-radius:6px;border:1px solid #e6eef6;margin-top:6px;">
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label class="small">Search (name)</label>
+      <div class="row">
+        <input id="searchInp" type="text" placeholder="Search places (temple, school...)" style="flex:1;padding:8px;border-radius:6px;border:1px solid #e6eef6;">
+        <button id="searchBtn" class="btn">Search</button>
+      </div>
+      <div id="searchHint" class="muted" style="margin-top:6px;">Searches currently loaded features by their <code>properties.name</code>.</div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid #eef2f7;margin:12px 0;">
+
+    <div>
+      <label class="small">Selected feature JSON (click a feature on map)</label>
+      <textarea id="featureJson" placeholder="Click a feature to edit JSON..."></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button id="applyBtn" class="btn">Apply to Map</button>
+        <button id="saveLocal" class="btn ghost">Save to LocalStorage</button>
+        <button id="downloadJson" class="btn">Download GeoJSON</button>
+      </div>
+      <div id="applyMsg" class="muted" style="margin-top:8px;"></div>
+    </div>
+
+    <footer>
+      <div class="muted">Carto raster base is used (free). The GeoJSON file is loaded from <code>nethrana.json</code>. Expand / replace that file to add more features.</div>
+    </footer>
   </div>
-  <p><b>Feature JSON</b></p>
-  <textarea id="jsonBox" placeholder="Click any feature..."></textarea><br/>
-  <button class="btn" id="applyBtn">Apply Edit</button>
-  <button class="btn gray" id="saveBtn">Save Local</button>
-</div>
 
-<div id="map"></div>
+  <!-- Toggle button -->
+  <div class="toggler" id="toggler">
+    <button id="togglePanel">Toggle</button>
+  </div>
 
-<script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>
-<script>
-// ---------- Map Setup ----------
-const map = new maplibregl.Map({
-  container: 'map',
-  style: {
-    "version": 8,
-    "sources": {
-      "carto": {
-        "type": "raster",
-        "tiles": [
-          "https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png"
-        ],
-        "tileSize": 256,
-        "attribution": "&copy; OpenStreetMap & Carto"
-      }
-    },
-    "layers": [{ "id": "carto", "type": "raster", "source": "carto" }]
-  },
-  center: [73.344, 27.7425],
-  zoom: 14
-});
-map.addControl(new maplibregl.NavigationControl(), 'top-right');
+  <!-- map container -->
+  <div id="map"></div>
 
-// ---------- Load GeoJSON ----------
-fetch('nethrana.json')
-  .then(r => r.json())
-  .then(data => {
-    window.GEO = data;
-    map.addSource('villages', { type: 'geojson', data: GEO });
+  <!-- Top-right search area (keeps map clear) -->
+  <div class="top-controls" id="topControls" style="right:12px;top:12px;">
+    <div class="search" title="Search features">
+      <input id="topSearch" placeholder="Search features..." />
+      <button id="topSearchBtn" class="btn" style="padding:6px 8px;">Go</button>
+    </div>
+  </div>
 
-    // polygons
-    map.addLayer({
-      id: 'polygons',
-      type: 'fill',
-      source: 'villages',
-      filter: ['==', ['geometry-type'], 'Polygon'],
-      paint: {
-        'fill-color': ['match', ['get', 'type'],
-          'water', '#9ddcff',
-          'boundary', '#c7d2fe',
-          '#f1f5f9'
-        ],
-        'fill-opacity': 0.5
-      }
-    });
-    // lines
-    map.addLayer({
-      id: 'lines',
-      type: 'line',
-      source: 'villages',
-      filter: ['==', ['geometry-type'], 'LineString'],
-      paint: { 'line-color': '#f97316', 'line-width': 3 }
-    });
-    // points
-    map.addLayer({
-      id: 'points',
-      type: 'circle',
-      source: 'villages',
-      filter: ['==', ['geometry-type'], 'Point'],
-      paint: {
-        'circle-color': [
-          'match',
-          ['get', 'type'],
-          'village', '#2563eb',
-          'temple', '#a855f7',
-          'clinic', '#10b981',
-          'school', '#facc15',
-          'shop', '#fb923c',
-          'house', '#737373',
-          '#000'
-        ],
-        'circle-radius': 7,
-        'circle-stroke-color': '#fff',
-        'circle-stroke-width': 1
-      }
-    });
-    // labels
-    map.addLayer({
-      id: 'labels',
-      type: 'symbol',
-      source: 'villages',
-      layout: {
-        'text-field': ['get', 'name'],
-        'text-offset': [0, 1.1],
-        'text-anchor': 'top',
-        'text-size': 13
+  <script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>
+  <script>
+  /*************************************************************************
+   * USER NOTES:
+   * - Place your expanded nethrana.json file in same folder as this page.
+   * - If you want real routing with travel time/distance, put your
+   *   OpenRouteService API key into the ORS key input and click "Get Route".
+   * - This HTML alone is free to host (Netlify, GitHub Pages, etc.).
+   *************************************************************************/
+
+  // --- Config / constants ---
+  const GJSON_PATH = 'nethrana.json'; // user will provide this file separately
+  const ORS_ENDPOINT = 'https://api.openrouteservice.org/v2/directions/driving-car/geojson';
+  // default state
+  let currentGeo = null;
+  let currentClickedFeature = null;
+
+  // --- Map init with Carto raster base ---
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: {
+      version: 8,
+      sources: {
+        carto: {
+          type: 'raster',
+          tiles: ['https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          attribution: '&copy; OpenStreetMap & Carto'
+        }
       },
-      paint: { 'text-color': '#111' }
-    });
+      layers: [{ id: 'carto', type: 'raster', source: 'carto' }]
+    },
+    center: [73.3440, 27.7425],
+    zoom: 14
+  });
+  map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-    // clicks → JSON
-    map.on('click', e => {
-      const feats = map.queryRenderedFeatures(e.point, { layers: ['points', 'lines', 'polygons'] });
-      if (!feats.length) return;
-      const f = feats[0];
-      document.getElementById('jsonBox').value = JSON.stringify(f, null, 2);
-      window.currentFeature = f;
-    });
+  // --- Sources / layers we will add after loading geojson ---
+  map.on('load', () => {
+    loadGeoJSON();
+    // add sources for route and markers
+    map.addSource('route', { type: 'geojson', data: { type:'FeatureCollection', features:[] }});
+    map.addLayer({ id: 'routeLine', type:'line', source:'route', paint:{ 'line-color':'#1a73e8','line-width':4 }, layout:{ 'visibility':'visible' }}, 'carto');
+
+    map.addSource('routePoints', { type:'geojson', data: { type:'FeatureCollection', features:[] }});
+    map.addLayer({ id:'routePointsLayer', type:'circle', source:'routePoints', paint:{ 'circle-radius':6,'circle-color':'#1a73e8','circle-stroke-color':'#fff','circle-stroke-width':2 }});
+
+    // draggable start/end markers: implement as maplibre markers (DOM elements)
+    initDraggableMarkers();
   });
 
-// ---------- FlyTo buttons ----------
-function flyToVillage(name) {
-  const feat = GEO.features.find(f => f.properties.name === name);
-  if (feat) map.flyTo({ center: feat.geometry.coordinates, zoom: 15 });
-}
-document.getElementById('gotoNethrana').onclick = () => flyToVillage('Nethrana');
-document.getElementById('gotoKothari').onclick = () => flyToVillage('Kothari');
-document.getElementById('gotoRupawas').onclick = () => flyToVillage('Rupawas');
+  // --- Load external GeoJSON file ---
+  async function loadGeoJSON(){
+    try{
+      const res = await fetch(GJSON_PATH);
+      if(!res.ok) throw new Error('GeoJSON file not found: ' + GJSON_PATH);
+      currentGeo = await res.json();
+      if(map.getSource('geo')) map.getSource('geo').setData(currentGeo);
+      else {
+        map.addSource('geo', { type:'geojson', data: currentGeo });
+        // add polygon fill
+        map.addLayer({ id:'polygons', type:'fill', source:'geo',
+          filter:['==',['geometry-type'],'Polygon'],
+          paint:{ 'fill-color':['match',['get','type'],'water','#9ddcff','boundary','#c7d2fe','#f1f5f9'], 'fill-opacity':0.6 }
+        });
+        // lines
+        map.addLayer({ id:'lines', type:'line', source:'geo', filter:['==',['geometry-type'],'LineString'], paint:{ 'line-color':'#f97316','line-width':3 }});
+        // points
+        map.addLayer({ id:'points', type:'circle', source:'geo', filter:['==',['geometry-type'],'Point'], paint:{
+          'circle-color':['match',['get','type'],'village','#2563eb','temple','#a855f7','clinic','#10b981','school','#facc15','shop','#fb923c','house','#737373','#000'],
+          'circle-radius':7,'circle-stroke-color':'#fff','circle-stroke-width':1
+        }});
+        // labels
+        map.addLayer({ id:'labels', type:'symbol', source:'geo', layout:{ 'text-field':['get','name'],'text-offset':[0,1.2],'text-anchor':'top','text-size':13 }, paint:{ 'text-color':'#111' }});
+      }
+      // fit to loaded data bounds
+      try{ fitToFeatures(); }catch(e){}
+    }catch(err){
+      console.error(err);
+      alert('Could not load GeoJSON: ' + err.message);
+    }
+  }
 
-// ---------- Apply & Save ----------
-document.getElementById('applyBtn').onclick = () => {
-  try {
-    const obj = JSON.parse(document.getElementById('jsonBox').value);
-    const id = obj.properties.id;
-    const i = GEO.features.findIndex(x => x.properties.id === id);
-    if (i >= 0) GEO.features[i] = obj;
-    map.getSource('villages').setData(GEO);
-    alert("Changes applied.");
-  } catch (e) { alert("Invalid JSON"); }
-};
-document.getElementById('saveBtn').onclick = () => {
-  localStorage.setItem('nethrana_geo', JSON.stringify(GEO));
-  alert("Saved locally");
-};
-
-// ---------- Routing (free logic-based) ----------
-const routeSource = { type: 'FeatureCollection', features: [] };
-map.on('load', () => {
-  map.addSource('route', { type: 'geojson', data: routeSource });
-  map.addLayer({
-    id: 'routeLine',
-    type: 'line',
-    source: 'route',
-    paint: { 'line-color': '#1a73e8', 'line-width': 4 }
+  // --- map click: identify feature and show JSON in panel ---
+  map.on('click', (e) => {
+    const features = map.queryRenderedFeatures(e.point, { layers:['points','lines','polygons','labels'] });
+    if(!features || !features.length) return;
+    const f = features[0];
+    // try to find original feature in loaded currentGeo by id property if possible
+    let orig = null;
+    if(f.properties && f.properties.id && currentGeo){
+      orig = currentGeo.features.find(ff => ff.properties && ff.properties.id === f.properties.id);
+    }
+    // if not found, try by geometry match (stringify)
+    if(!orig && currentGeo){
+      orig = currentGeo.features.find(ff => JSON.stringify(ff.geometry) === JSON.stringify(f.geometry));
+    }
+    // fallback: use the rendered feature object
+    const toShow = orig || f;
+    document.getElementById('featureJson').value = JSON.stringify(toShow, null, 2);
+    // open panel if closed
+    openPanel();
+    // store current clicked feature reference (we require properties.id to update)
+    currentClickedFeature = toShow;
   });
-});
-document.getElementById('routeBtn').onclick = () => {
-  if (!window.currentFeature) { alert("Click any feature first"); return; }
-  const start = [73.341, 27.743];
-  const end = window.currentFeature.geometry.coordinates;
-  const route = {
-    type: "Feature",
-    properties: { name: "Approx Route" },
-    geometry: { type: "LineString", coordinates: [start, end] }
-  };
-  routeSource.features = [route];
-  map.getSource('route').setData(routeSource);
-};
-</script>
+
+  // --- Panel open/close toggling ---
+  const panel = document.getElementById('panel');
+  const mapEl = document.getElementById('map');
+  const toggler = document.getElementById('togglePanel');
+  function openPanel(){ panel.classList.remove('closed'); mapEl.classList.remove('full'); }
+  function closePanel(){ panel.classList.add('closed'); mapEl.classList.add('full'); }
+  toggler.addEventListener('click', ()=>{ panel.classList.toggle('closed'); mapEl.classList.toggle('full'); });
+
+  // default: open
+  panel.classList.remove('closed');
+
+  // --- Apply edited JSON back into currentGeo and update source ---
+  document.getElementById('applyBtn').addEventListener('click', ()=>{
+    const txt = document.getElementById('featureJson').value;
+    try{
+      const obj = JSON.parse(txt);
+      if(obj.type !== 'Feature'){ alert('JSON must be a Feature'); return; }
+      if(!obj.properties || !obj.properties.id){ alert('Feature must have properties.id to update existing feature'); return; }
+      const idx = currentGeo.features.findIndex(f => f.properties && f.properties.id === obj.properties.id);
+      if(idx === -1){ alert('No matching feature with id: ' + obj.properties.id); return; }
+      currentGeo.features[idx] = obj;
+      map.getSource('geo').setData(currentGeo);
+      document.getElementById('applyMsg').textContent = 'Applied changes to feature ' + obj.properties.id;
+      setTimeout(()=>{ document.getElementById('applyMsg').textContent = ''; }, 3000);
+    }catch(e){
+      alert('Invalid JSON: ' + e.message);
+    }
+  });
+
+  // --- Save to localStorage ---
+  document.getElementById('saveLocal').addEventListener('click', ()=>{
+    if(!currentGeo) return alert('No data to save');
+    localStorage.setItem('nethrana_geo_full', JSON.stringify(currentGeo));
+    alert('Saved to LocalStorage');
+  });
+
+  // --- Download edited geojson ---
+  document.getElementById('downloadJson').addEventListener('click', ()=>{
+    if(!currentGeo) return alert('No data to download');
+    const blob = new Blob([JSON.stringify(currentGeo, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'nethrana_edited.json'; a.click(); a.remove();
+  });
+
+  // --- Fit map bounds to features ---
+  function fitToFeatures(){
+    if(!currentGeo || !currentGeo.features || !currentGeo.features.length) return;
+    let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+    currentGeo.features.forEach(f=>{
+      (function walk(coords){
+        if(typeof coords[0] === 'number'){ const x=coords[0], y=coords[1]; minx=Math.min(minx,x); miny=Math.min(miny,y); maxx=Math.max(maxx,x); maxy=Math.max(maxy,y); return; }
+        coords.forEach(c=>walk(c));
+      })(f.geometry.coordinates);
+    });
+    map.fitBounds([[minx,miny],[maxx,maxy]], { padding: 30 });
+  }
+
+  // --- Search (panel & top) ---
+  document.getElementById('searchBtn').addEventListener('click', doSearch);
+  document.getElementById('topSearchBtn').addEventListener('click', doSearchTop);
+  function doSearch(){
+    const q = document.getElementById('searchInp').value.trim().toLowerCase();
+    doSearchGeneric(q);
+  }
+  function doSearchTop(){
+    const q = document.getElementById('topSearch').value.trim().toLowerCase();
+    doSearchGeneric(q);
+  }
+  function doSearchGeneric(q){
+    if(!q || !currentGeo) return alert('Enter search term');
+    const f = currentGeo.features.find(fe=>fe.properties && fe.properties.name && fe.properties.name.toLowerCase().includes(q));
+    if(!f) return alert('No match found');
+    map.flyTo({ center: (f.geometry.type === 'Point' ? f.geometry.coordinates : getFeatureCenter(f)), zoom: 16 });
+    document.getElementById('featureJson').value = JSON.stringify(f, null, 2);
+    currentClickedFeature = f;
+    openPanel();
+  }
+
+  // --- helpers: compute simple centroid for non-point features ---
+  function getFeatureCenter(feat){
+    const coords = [];
+    (function walk(c){
+      if(typeof c[0] === 'number'){ coords.push(c); return; }
+      c.forEach(walk);
+    })(feat.geometry.coordinates);
+    let sx=0, sy=0;
+    coords.forEach(c=>{ sx+=c[0]; sy+=c[1]; });
+    return [sx/coords.length, sy/coords.length];
+  }
+
+  // --- Draggable start/end markers (Maplibre DOM markers) ---
+  let startMarker = null, endMarker = null;
+  let isSettingStart = false, isSettingEnd = false;
+  function createDraggableMarker(lnglat, color = '#1a73e8'){
+    const el = document.createElement('div');
+    el.style.width = '18px'; el.style.height = '18px'; el.style.borderRadius = '50%';
+    el.style.background = color; el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.3)'; el.style.border='2px solid #fff';
+    const marker = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(lnglat).addTo(map);
+    return marker;
+  }
+  function initDraggableMarkers(){
+    // default positions relative to map area (if there are villages, center near first)
+    const defaultStart = [73.341,27.743];
+    const defaultEnd = [73.344,27.7425];
+    startMarker = createDraggableMarker(defaultStart, '#10b981');
+    endMarker = createDraggableMarker(defaultEnd, '#1a73e8');
+    // when drag ends, optionally update route
+    startMarker.on('dragend', ()=>{ if(document.getElementById('btnGetRoute')) document.getElementById('btnGetRoute').click(); });
+    endMarker.on('dragend', ()=>{ if(document.getElementById('btnGetRoute')) document.getElementById('btnGetRoute').click(); });
+  }
+
+  // panel buttons to set start/end mode: user clicks map to place marker
+  document.getElementById('btnSetStart').addEventListener('click', ()=>{
+    isSettingStart = true; isSettingEnd = false;
+    alert('Click on map to set START position (marker will move).');
+  });
+  document.getElementById('btnSetEnd').addEventListener('click', ()=>{
+    isSettingEnd = true; isSettingStart = false;
+    alert('Click on map to set END position (marker will move).');
+  });
+
+  // Map click for placing start/end when in set mode
+  map.on('click', (e)=>{
+    if(isSettingStart){
+      startMarker.setLngLat([e.lngLat.lng, e.lngLat.lat]);
+      isSettingStart = false;
+      return;
+    }
+    if(isSettingEnd){
+      endMarker.setLngLat([e.lngLat.lng, e.lngLat.lat]);
+      isSettingEnd = false;
+      return;
+    }
+  });
+
+  // --- Route fetching: uses ORS if key present; else draws straight line fallback ---
+  document.getElementById('btnGetRoute').addEventListener('click', async ()=>{
+    if(!startMarker || !endMarker) return alert('Markers not ready');
+    const start = startMarker.getLngLat(); const end = endMarker.getLngLat();
+    const key = document.getElementById('orsKey').value.trim();
+    if(key){
+      // call ORS
+      try{
+        const body = { coordinates: [ [start.lng, start.lat], [end.lng, end.lat] ] };
+        const res = await fetch(ORS_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'Accept':'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8', 'Authorization': key },
+          body: JSON.stringify(body)
+        });
+        if(!res.ok) throw new Error('ORS returned ' + res.status);
+        const data = await res.json();
+        // ORS returns a FeatureCollection/Feature with geometry
+        if(data && data.features && data.features.length){
+          map.getSource('route').setData(data.features[0]);
+          // also set route points (start/end)
+          map.getSource('routePoints').setData({ type:'FeatureCollection', features:[
+            { type:'Feature', properties:{role:'start'}, geometry:{ type:'Point', coordinates:[start.lng, start.lat]}},
+            { type:'Feature', properties:{role:'end'}, geometry:{ type:'Point', coordinates:[end.lng, end.lat]}}
+          ]});
+          // optionally show travel time/distance
+          let info = '';
+          if(data.features[0].properties && data.features[0].properties.summary){
+            const s = data.features[0].properties.summary;
+            info = `Distance: ${Math.round(s.distance)} m, Duration: ${Math.round(s.duration)} s`;
+          }
+          if(info) alert('Route computed — ' + info);
+          return;
+        } else {
+          throw new Error('No route returned');
+        }
+      }catch(err){
+        console.error('ORS routing error', err);
+        alert('ORS routing failed; drawing straight-line fallback. (' + err.message + ')');
+      }
+    }
+    // fallback: straight line between start and end
+    const fallback = { type:'Feature', properties:{}, geometry:{ type:'LineString', coordinates: [ [start.lng, start.lat], [end.lng, end.lat] ] } };
+    map.getSource('route').setData(fallback);
+    map.getSource('routePoints').setData({ type:'FeatureCollection', features:[
+      { type:'Feature', properties:{role:'start'}, geometry:{ type:'Point', coordinates: [start.lng, start.lat] } },
+      { type:'Feature', properties:{role:'end'}, geometry:{ type:'Point', coordinates: [end.lng, end.lat] } }
+    ]});
+  });
+
+  // clear route
+  document.getElementById('btnClearRoute').addEventListener('click', ()=>{
+    map.getSource('route').setData({ type:'FeatureCollection', features:[]});
+    map.getSource('routePoints').setData({ type:'FeatureCollection', features:[]});
+  });
+
+  // --- Quick jump buttons (search by properties.name) ---
+  document.getElementById('btnNethrana').addEventListener('click', ()=>jumpTo('Nethrana'));
+  document.getElementById('btnKothari').addEventListener('click', ()=>jumpTo('Kothari'));
+  document.getElementById('btnRupawas').addEventListener('click', ()=>jumpTo('Rupawas'));
+  function jumpTo(name){
+    if(!currentGeo) return;
+    const f = currentGeo.features.find(x => x.properties && x.properties.name === name);
+    if(!f) return alert('Place not found: ' + name);
+    const center = (f.geometry.type === 'Point' ? f.geometry.coordinates : getFeatureCenter(f));
+    map.flyTo({ center: center, zoom: 15 });
+  }
+
+  // --- Top search field binding ---
+  document.getElementById('topSearchBtn').addEventListener('click', ()=>{
+    const q = document.getElementById('topSearch').value.trim().toLowerCase();
+    if(!q) return alert('Enter search term');
+    const f = currentGeo.features.find(ff => ff.properties && ff.properties.name && ff.properties.name.toLowerCase().includes(q));
+    if(!f) return alert('No match');
+    const center = (f.geometry.type === 'Point' ? f.geometry.coordinates : getFeatureCenter(f));
+    map.flyTo({ center: center, zoom: 16 });
+    document.getElementById('featureJson').value = JSON.stringify(f, null, 2);
+    currentClickedFeature = f;
+    openPanel();
+  });
+
+  // --- Utility: get center of feature ---
+  function getFeatureCenter(feat){
+    const coords = [];
+    (function walk(c){
+      if(typeof c[0] === 'number'){ coords.push(c); return; }
+      c.forEach(walk);
+    })(feat.geometry.coordinates);
+    let sx=0, sy=0; coords.forEach(c=>{ sx+=c[0]; sy+=c[1]; });
+    return [sx/coords.length, sy/coords.length];
+  }
+
+  // ensure route & routePoints sources exist before first use
+  map.on('idle', ()=> {
+    if(!map.getSource('route')) map.addSource('route',{ type:'geojson', data:{ type:'FeatureCollection', features:[] }});
+    if(!map.getSource('routePoints')) map.addSource('routePoints',{ type:'geojson', data:{ type:'FeatureCollection', features:[] }});
+  });
+
+  // --- initial UI: ensure markers exist after load ---
+  function ensureMarkers(){
+    if(!startMarker || !endMarker) initDraggableMarkers();
+  }
+
+  // init draggable markers (if not created earlier)
+  function initDraggableMarkers(){
+    // create default markers if not exist
+    if(window.startMarker || window.endMarker) return;
+    const sEl = document.createElement('div'); sEl.style.width='18px'; sEl.style.height='18px'; sEl.style.background='#10b981'; sEl.style.border='2px solid #fff'; sEl.style.borderRadius='50%'; sEl.style.boxShadow='0 1px 4px rgba(0,0,0,0.3)';
+    const eEl = document.createElement('div'); eEl.style.width='18px'; eEl.style.height='18px'; eEl.style.background='#1a73e8'; eEl.style.border='2px solid #fff'; eEl.style.borderRadius='50%'; eEl.style.boxShadow='0 1px 4px rgba(0,0,0,0.3)';
+    window.startMarker = new maplibregl.Marker({ element: sEl, draggable:true }).setLngLat([73.341,27.743]).addTo(map);
+    window.endMarker = new maplibregl.Marker({ element: eEl, draggable:true }).setLngLat([73.344,27.7425]).addTo(map);
+    // on drag end optionally recompute route
+    window.startMarker.on('dragend', ()=>{ /* optional update */ });
+    window.endMarker.on('dragend', ()=>{ /* optional update */ });
+  }
+
+  // call ensureMarkers when map loaded
+  map.on('load', ensureMarkers);
+
+  // --- Keyboard: ESC closes panel on small screens ---
+  window.addEventListener('keydown', (e)=> { if(e.key === 'Escape') { closePanel(); } });
+
+  // done
+  </script>
 </body>
 </html>
