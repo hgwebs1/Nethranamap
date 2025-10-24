@@ -1,482 +1,344 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Nethrana Map — MapLibre + Carto + Routing + Collapsible Panel</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link href="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.css" rel="stylesheet" />
-  <style>
-    :root{
-      --panel-w:360px;
-      --accent:#1a73e8;
-      --bg:#ffffff;
-      --muted:#6b7280;
-    }
-    html,body{height:100%;margin:0;font-family:Inter,Roboto,Arial,sans-serif;color:#0f172a;}
-    /* Main map fills remaining area when panel is visible/hidden */
-    #panel { position: absolute; left: 0; top: 0; bottom: 0; width: var(--panel-w); background: linear-gradient(180deg,#fff,#fbfdff);
-             border-right:1px solid #e6eef6; box-sizing:border-box; padding:12px; transition: transform .28s ease; z-index: 3; overflow:auto; }
-    #panel.closed { transform: translateX(calc(-1 * var(--panel-w))); }
-    #map { position: absolute; left: var(--panel-w); top: 0; right: 0; bottom: 0; transition: left .28s ease; }
-    #map.full { left: 0; }
-    .toggler { position: absolute; left: var(--panel-w); top: 12px; transform: translateX(-100%); z-index: 5; }
-    .toggler button { background: var(--accent); color: #fff; border: none; padding: 8px 10px; border-radius: 8px; cursor:pointer; }
-    h1 { margin: 6px 0; font-size: 18px; }
-    p.lead { margin: 6px 0 12px 0; color: var(--muted); font-size: 13px; }
-    .row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
-    .btn { background: var(--accent); color: #fff; border: none; padding: 8px 10px; border-radius: 8px; cursor:pointer; font-weight:600; }
-    .btn.ghost { background: #f1f5f9; color: #0f172a; border: 1px solid #e6eef6; }
-    label.small { font-size:13px; color:#374151; margin-bottom:6px; display:block; }
-    textarea#featureJson { width:100%; height: 220px; font-family: monospace; font-size:13px; padding:8px; box-sizing:border-box; border-radius:6px; border:1px solid #e6eef6; }
-    .muted { color: var(--muted); font-size:13px; }
-    .control-group { margin-bottom:12px; }
-    .top-controls { position: absolute; right: 12px; top: 12px; z-index: 6; display:flex; gap:8px; }
-    .search { display:flex; gap:8px; background:#fff; padding:6px; border-radius:8px; border:1px solid #e6eef6; align-items:center; box-shadow:0 1px 4px rgba(10,10,10,0.04);}
-    .search input{border:0;outline:none;font-size:14px;width:220px;}
-    .info { font-size:13px; color:#0f172a; margin-top:8px; }
-    footer { margin-top:12px; font-size:12px; color:var(--muted); }
-    @media (max-width:900px){
-      #panel{position:relative;width:100%;height:340px;transform:none;}
-      #map{left:0;top:340px;}
-      .toggler{display:none;}
-    }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>India Border Maker</title>
+<link rel="stylesheet" href="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.19.0/maps/maps.css">
+<style>
+  html,body { height:100%; margin:0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:#f9fafb;}
+  #app { display:flex; flex-direction: column; height: 100vh; }
+  header { background:#2563eb; color:white; font-weight:600; padding:12px; text-align:center; }
+  .map-container { flex:1; position: relative; }
+  #tomtomMap, #googleIframe, #overlaySvg {
+    position: absolute; top:0; left:0; width:100%; height:100%; border-radius: 12px; box-shadow:0 4px 12px rgba(0,0,0,0.1);
+  }
+  #googleIframe { pointer-events:none; } /* pointer-events none so overlaySvg gets mouse */
+  #overlaySvg { pointer-events:auto; cursor:crosshair; }
+
+  .controls {
+    display: flex; flex-wrap: wrap; gap:8px; padding:10px; background:white; box-shadow:0 2px 6px rgba(0,0,0,0.1); border-radius:12px; align-items:center; justify-content:flex-start;
+  }
+  .btn {
+    background:#2563eb; border:none; border-radius:8px; color:white; padding:6px 12px; cursor:pointer; transition:0.2s; font-weight:500; font-size: 0.9rem;
+  }
+  .btn:hover { background:#1e40af; transform: translateY(-1px);}
+  .btn.secondary { background:#f3f4f6; color:#111; border:1px solid #d1d5db; }
+
+  label { font-size: 0.9rem; color:#374151; margin-left: auto; }
+  textarea {
+    width: 100%; height: 120px; margin-top: 12px; font-family: monospace; font-size: 14px;
+    resize:none; border-radius:8px; border:1px solid #d1d5db; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); padding: 8px;
+  }
+  @media (max-width:768px){
+    .controls { flex-direction: column; align-items: flex-start; }
+    .btn { width: 100%; }
+    label { margin-left: 0; margin-top: 6px; }
+  }
+</style>
 </head>
 <body>
-
-  <!-- Left collapsible panel -->
-  <div id="panel" class="">
-    <h1>Nethrana Map — Editor</h1>
-    <p class="lead">Click a feature on the map to open/edit its JSON. Draggable start/end markers for routing. Use your OpenRouteService key for real route & ETA.</p>
-
-    <div class="control-group">
-      <label class="small">Quick jump</label>
-      <div class="row">
-        <button id="btnNethrana" class="btn">Go to Nethrana</button>
-        <button id="btnKothari" class="btn">Go to Kothari</button>
-        <button id="btnRupawas" class="btn">Go to Rupawas</button>
-      </div>
-    </div>
-
-    <div class="control-group">
-      <label class="small">Routing controls</label>
-      <div class="row">
-        <button id="btnSetStart" class="btn ghost">Set Start (drag marker)</button>
-        <button id="btnSetEnd" class="btn ghost">Set End (drag marker)</button>
-        <button id="btnGetRoute" class="btn">Get Route</button>
-        <button id="btnClearRoute" class="btn ghost">Clear Route</button>
-      </div>
-      <div class="muted" style="margin-top:6px;">
-        ORS API key (optional — if blank, draws straight line): <br/>
-        <input id="orsKey" type="text" placeholder="Paste OpenRouteService API key" style="width:100%;padding:8px;border-radius:6px;border:1px solid #e6eef6;margin-top:6px;">
-      </div>
-    </div>
-
-    <div class="control-group">
-      <label class="small">Search (name)</label>
-      <div class="row">
-        <input id="searchInp" type="text" placeholder="Search places (temple, school...)" style="flex:1;padding:8px;border-radius:6px;border:1px solid #e6eef6;">
-        <button id="searchBtn" class="btn">Search</button>
-      </div>
-      <div id="searchHint" class="muted" style="margin-top:6px;">Searches currently loaded features by their <code>properties.name</code>.</div>
-    </div>
-
-    <hr style="border:none;border-top:1px solid #eef2f7;margin:12px 0;">
-
-    <div>
-      <label class="small">Selected feature JSON (click a feature on map)</label>
-      <textarea id="featureJson" placeholder="Click a feature to edit JSON..."></textarea>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <button id="applyBtn" class="btn">Apply to Map</button>
-        <button id="saveLocal" class="btn ghost">Save to LocalStorage</button>
-        <button id="downloadJson" class="btn">Download GeoJSON</button>
-      </div>
-      <div id="applyMsg" class="muted" style="margin-top:8px;"></div>
-    </div>
-
-    <footer>
-      <div class="muted">Carto raster base is used (free). The GeoJSON file is loaded from <code>nethrana.json</code>. Expand / replace that file to add more features.</div>
-    </footer>
+<div id="app">
+  <header>India Border Maker</header>
+  <div class="controls">
+    <label><input type="radio" name="mapSource" value="tomtom" checked> TomTom Map</label>
+    <label><input type="radio" name="mapSource" value="google"> Google Map</label>
+    <button class="btn" id="importBtn">Import GeoJSON</button>
+    <button class="btn" id="undoBtn">Undo</button>
+    <button class="btn" id="redoBtn">Redo</button>
+    <button class="btn" id="densifyBtn">Densify</button>
+    <button class="btn" id="approveBtn">Approve</button>
+    <button class="btn secondary" id="clearBtn">Clear</button>
+    <button class="btn" id="downloadBtn">Download GeoJSON</button>
   </div>
-
-  <!-- Toggle button -->
-  <div class="toggler" id="toggler">
-    <button id="togglePanel">Toggle</button>
+  <div class="map-container">
+    <div id="tomtomMap"></div>
+    <iframe id="googleIframe" src="https://maps.google.com/maps?q=india&amp;t=&amp;z=5&amp;ie=UTF8&amp;iwloc=&amp;output=embed" frameborder="0" style="display:none;"></iframe>
+    <svg id="overlaySvg" style="display:none;" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
+  <textarea id="geoJsonArea" placeholder="Paste or edit GeoJSON here"></textarea>
+</div>
 
-  <!-- map container -->
-  <div id="map"></div>
+<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+<script src="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.19.0/maps/maps-web.min.js"></script>
+<script>
+  // Globals
+  const tomtomKey = '6XJgdqos3W3hYxd2ekAgNUxWQk5QWNc5';
+  let map, selectedFeature=null, editableMarkers=[], finalFeatures=[];
+  let importedGeoJSON=null, historyStack=[], redoStack=[];
+  let selectedLayerId = 'selected-layer';
+  let geojsonSourceId = 'geojson-source';
+  let densifyFactor = 1; // basic densify step
 
-  <!-- Top-right search area (keeps map clear) -->
-  <div class="top-controls" id="topControls" style="right:12px;top:12px;">
-    <div class="search" title="Search features">
-      <input id="topSearch" placeholder="Search features..." />
-      <button id="topSearchBtn" class="btn" style="padding:6px 8px;">Go</button>
-    </div>
-  </div>
-
-  <script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>
-  <script>
-  /*************************************************************************
-   * USER NOTES:
-   * - Place your expanded nethrana.json file in same folder as this page.
-   * - If you want real routing with travel time/distance, put your
-   *   OpenRouteService API key into the ORS key input and click "Get Route".
-   * - This HTML alone is free to host (Netlify, GitHub Pages, etc.).
-   *************************************************************************/
-
-  // --- Config / constants ---
-  const GJSON_PATH = 'nethrana.json'; // user will provide this file separately
-  const ORS_ENDPOINT = 'https://api.openrouteservice.org/v2/directions/driving-car/geojson';
-  // default state
-  let currentGeo = null;
-  let currentClickedFeature = null;
-
-  // --- Map init with Carto raster base ---
-  const map = new maplibregl.Map({
-    container: 'map',
-    style: {
-      version: 8,
-      sources: {
-        carto: {
-          type: 'raster',
-          tiles: ['https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png'],
-          tileSize: 256,
-          attribution: '&copy; OpenStreetMap & Carto'
-        }
-      },
-      layers: [{ id: 'carto', type: 'raster', source: 'carto' }]
-    },
-    center: [73.3440, 27.7425],
-    zoom: 14
-  });
-  map.addControl(new maplibregl.NavigationControl(), 'top-right');
-
-  // --- Sources / layers we will add after loading geojson ---
-  map.on('load', () => {
-    loadGeoJSON();
-    // add sources for route and markers
-    map.addSource('route', { type: 'geojson', data: { type:'FeatureCollection', features:[] }});
-    map.addLayer({ id: 'routeLine', type:'line', source:'route', paint:{ 'line-color':'#1a73e8','line-width':4 }, layout:{ 'visibility':'visible' }}, 'carto');
-
-    map.addSource('routePoints', { type:'geojson', data: { type:'FeatureCollection', features:[] }});
-    map.addLayer({ id:'routePointsLayer', type:'circle', source:'routePoints', paint:{ 'circle-radius':6,'circle-color':'#1a73e8','circle-stroke-color':'#fff','circle-stroke-width':2 }});
-
-    // draggable start/end markers: implement as maplibre markers (DOM elements)
-    initDraggableMarkers();
-  });
-
-  // --- Load external GeoJSON file ---
-  async function loadGeoJSON(){
-    try{
-      const res = await fetch(GJSON_PATH);
-      if(!res.ok) throw new Error('GeoJSON file not found: ' + GJSON_PATH);
-      currentGeo = await res.json();
-      if(map.getSource('geo')) map.getSource('geo').setData(currentGeo);
-      else {
-        map.addSource('geo', { type:'geojson', data: currentGeo });
-        // add polygon fill
-        map.addLayer({ id:'polygons', type:'fill', source:'geo',
-          filter:['==',['geometry-type'],'Polygon'],
-          paint:{ 'fill-color':['match',['get','type'],'water','#9ddcff','boundary','#c7d2fe','#f1f5f9'], 'fill-opacity':0.6 }
-        });
-        // lines
-        map.addLayer({ id:'lines', type:'line', source:'geo', filter:['==',['geometry-type'],'LineString'], paint:{ 'line-color':'#f97316','line-width':3 }});
-        // points
-        map.addLayer({ id:'points', type:'circle', source:'geo', filter:['==',['geometry-type'],'Point'], paint:{
-          'circle-color':['match',['get','type'],'village','#2563eb','temple','#a855f7','clinic','#10b981','school','#facc15','shop','#fb923c','house','#737373','#000'],
-          'circle-radius':7,'circle-stroke-color':'#fff','circle-stroke-width':1
-        }});
-        // labels
-        map.addLayer({ id:'labels', type:'symbol', source:'geo', layout:{ 'text-field':['get','name'],'text-offset':[0,1.2],'text-anchor':'top','text-size':13 }, paint:{ 'text-color':'#111' }});
-      }
-      // fit to loaded data bounds
-      try{ fitToFeatures(); }catch(e){}
-    }catch(err){
-      console.error(err);
-      alert('Could not load GeoJSON: ' + err.message);
-    }
-  }
-
-  // --- map click: identify feature and show JSON in panel ---
-  map.on('click', (e) => {
-    const features = map.queryRenderedFeatures(e.point, { layers:['points','lines','polygons','labels'] });
-    if(!features || !features.length) return;
-    const f = features[0];
-    // try to find original feature in loaded currentGeo by id property if possible
-    let orig = null;
-    if(f.properties && f.properties.id && currentGeo){
-      orig = currentGeo.features.find(ff => ff.properties && ff.properties.id === f.properties.id);
-    }
-    // if not found, try by geometry match (stringify)
-    if(!orig && currentGeo){
-      orig = currentGeo.features.find(ff => JSON.stringify(ff.geometry) === JSON.stringify(f.geometry));
-    }
-    // fallback: use the rendered feature object
-    const toShow = orig || f;
-    document.getElementById('featureJson').value = JSON.stringify(toShow, null, 2);
-    // open panel if closed
-    openPanel();
-    // store current clicked feature reference (we require properties.id to update)
-    currentClickedFeature = toShow;
-  });
-
-  // --- Panel open/close toggling ---
-  const panel = document.getElementById('panel');
-  const mapEl = document.getElementById('map');
-  const toggler = document.getElementById('togglePanel');
-  function openPanel(){ panel.classList.remove('closed'); mapEl.classList.remove('full'); }
-  function closePanel(){ panel.classList.add('closed'); mapEl.classList.add('full'); }
-  toggler.addEventListener('click', ()=>{ panel.classList.toggle('closed'); mapEl.classList.toggle('full'); });
-
-  // default: open
-  panel.classList.remove('closed');
-
-  // --- Apply edited JSON back into currentGeo and update source ---
-  document.getElementById('applyBtn').addEventListener('click', ()=>{
-    const txt = document.getElementById('featureJson').value;
-    try{
-      const obj = JSON.parse(txt);
-      if(obj.type !== 'Feature'){ alert('JSON must be a Feature'); return; }
-      if(!obj.properties || !obj.properties.id){ alert('Feature must have properties.id to update existing feature'); return; }
-      const idx = currentGeo.features.findIndex(f => f.properties && f.properties.id === obj.properties.id);
-      if(idx === -1){ alert('No matching feature with id: ' + obj.properties.id); return; }
-      currentGeo.features[idx] = obj;
-      map.getSource('geo').setData(currentGeo);
-      document.getElementById('applyMsg').textContent = 'Applied changes to feature ' + obj.properties.id;
-      setTimeout(()=>{ document.getElementById('applyMsg').textContent = ''; }, 3000);
-    }catch(e){
-      alert('Invalid JSON: ' + e.message);
-    }
-  });
-
-  // --- Save to localStorage ---
-  document.getElementById('saveLocal').addEventListener('click', ()=>{
-    if(!currentGeo) return alert('No data to save');
-    localStorage.setItem('nethrana_geo_full', JSON.stringify(currentGeo));
-    alert('Saved to LocalStorage');
-  });
-
-  // --- Download edited geojson ---
-  document.getElementById('downloadJson').addEventListener('click', ()=>{
-    if(!currentGeo) return alert('No data to download');
-    const blob = new Blob([JSON.stringify(currentGeo, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'nethrana_edited.json'; a.click(); a.remove();
-  });
-
-  // --- Fit map bounds to features ---
-  function fitToFeatures(){
-    if(!currentGeo || !currentGeo.features || !currentGeo.features.length) return;
-    let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
-    currentGeo.features.forEach(f=>{
-      (function walk(coords){
-        if(typeof coords[0] === 'number'){ const x=coords[0], y=coords[1]; minx=Math.min(minx,x); miny=Math.min(miny,y); maxx=Math.max(maxx,x); maxy=Math.max(maxy,y); return; }
-        coords.forEach(c=>walk(c));
-      })(f.geometry.coordinates);
+  // Initialize TomTom map
+  function initTomTom(){
+    map = tt.map({
+      key: tomtomKey,
+      container: 'tomtomMap',
+      center: [79,22],
+      zoom: 5,
+      style: 'tomtom://vector/1/basic-main'
     });
-    map.fitBounds([[minx,miny],[maxx,maxy]], { padding: 30 });
-  }
-
-  // --- Search (panel & top) ---
-  document.getElementById('searchBtn').addEventListener('click', doSearch);
-  document.getElementById('topSearchBtn').addEventListener('click', doSearchTop);
-  function doSearch(){
-    const q = document.getElementById('searchInp').value.trim().toLowerCase();
-    doSearchGeneric(q);
-  }
-  function doSearchTop(){
-    const q = document.getElementById('topSearch').value.trim().toLowerCase();
-    doSearchGeneric(q);
-  }
-  function doSearchGeneric(q){
-    if(!q || !currentGeo) return alert('Enter search term');
-    const f = currentGeo.features.find(fe=>fe.properties && fe.properties.name && fe.properties.name.toLowerCase().includes(q));
-    if(!f) return alert('No match found');
-    map.flyTo({ center: (f.geometry.type === 'Point' ? f.geometry.coordinates : getFeatureCenter(f)), zoom: 16 });
-    document.getElementById('featureJson').value = JSON.stringify(f, null, 2);
-    currentClickedFeature = f;
-    openPanel();
-  }
-
-  // --- helpers: compute simple centroid for non-point features ---
-  function getFeatureCenter(feat){
-    const coords = [];
-    (function walk(c){
-      if(typeof c[0] === 'number'){ coords.push(c); return; }
-      c.forEach(walk);
-    })(feat.geometry.coordinates);
-    let sx=0, sy=0;
-    coords.forEach(c=>{ sx+=c[0]; sy+=c[1]; });
-    return [sx/coords.length, sy/coords.length];
-  }
-
-  // --- Draggable start/end markers (Maplibre DOM markers) ---
-  let startMarker = null, endMarker = null;
-  let isSettingStart = false, isSettingEnd = false;
-  function createDraggableMarker(lnglat, color = '#1a73e8'){
-    const el = document.createElement('div');
-    el.style.width = '18px'; el.style.height = '18px'; el.style.borderRadius = '50%';
-    el.style.background = color; el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.3)'; el.style.border='2px solid #fff';
-    const marker = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(lnglat).addTo(map);
-    return marker;
-  }
-  function initDraggableMarkers(){
-    // default positions relative to map area (if there are villages, center near first)
-    const defaultStart = [73.341,27.743];
-    const defaultEnd = [73.344,27.7425];
-    startMarker = createDraggableMarker(defaultStart, '#10b981');
-    endMarker = createDraggableMarker(defaultEnd, '#1a73e8');
-    // when drag ends, optionally update route
-    startMarker.on('dragend', ()=>{ if(document.getElementById('btnGetRoute')) document.getElementById('btnGetRoute').click(); });
-    endMarker.on('dragend', ()=>{ if(document.getElementById('btnGetRoute')) document.getElementById('btnGetRoute').click(); });
-  }
-
-  // panel buttons to set start/end mode: user clicks map to place marker
-  document.getElementById('btnSetStart').addEventListener('click', ()=>{
-    isSettingStart = true; isSettingEnd = false;
-    alert('Click on map to set START position (marker will move).');
-  });
-  document.getElementById('btnSetEnd').addEventListener('click', ()=>{
-    isSettingEnd = true; isSettingStart = false;
-    alert('Click on map to set END position (marker will move).');
-  });
-
-  // Map click for placing start/end when in set mode
-  map.on('click', (e)=>{
-    if(isSettingStart){
-      startMarker.setLngLat([e.lngLat.lng, e.lngLat.lat]);
-      isSettingStart = false;
-      return;
-    }
-    if(isSettingEnd){
-      endMarker.setLngLat([e.lngLat.lng, e.lngLat.lat]);
-      isSettingEnd = false;
-      return;
-    }
-  });
-
-  // --- Route fetching: uses ORS if key present; else draws straight line fallback ---
-  document.getElementById('btnGetRoute').addEventListener('click', async ()=>{
-    if(!startMarker || !endMarker) return alert('Markers not ready');
-    const start = startMarker.getLngLat(); const end = endMarker.getLngLat();
-    const key = document.getElementById('orsKey').value.trim();
-    if(key){
-      // call ORS
-      try{
-        const body = { coordinates: [ [start.lng, start.lat], [end.lng, end.lat] ] };
-        const res = await fetch(ORS_ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type':'application/json', 'Accept':'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8', 'Authorization': key },
-          body: JSON.stringify(body)
-        });
-        if(!res.ok) throw new Error('ORS returned ' + res.status);
-        const data = await res.json();
-        // ORS returns a FeatureCollection/Feature with geometry
-        if(data && data.features && data.features.length){
-          map.getSource('route').setData(data.features[0]);
-          // also set route points (start/end)
-          map.getSource('routePoints').setData({ type:'FeatureCollection', features:[
-            { type:'Feature', properties:{role:'start'}, geometry:{ type:'Point', coordinates:[start.lng, start.lat]}},
-            { type:'Feature', properties:{role:'end'}, geometry:{ type:'Point', coordinates:[end.lng, end.lat]}}
-          ]});
-          // optionally show travel time/distance
-          let info = '';
-          if(data.features[0].properties && data.features[0].properties.summary){
-            const s = data.features[0].properties.summary;
-            info = `Distance: ${Math.round(s.distance)} m, Duration: ${Math.round(s.duration)} s`;
-          }
-          if(info) alert('Route computed — ' + info);
-          return;
-        } else {
-          throw new Error('No route returned');
-        }
-      }catch(err){
-        console.error('ORS routing error', err);
-        alert('ORS routing failed; drawing straight-line fallback. (' + err.message + ')');
+    map.on('load', () => {
+      map.addSource(geojsonSourceId, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] }
+      });
+      map.addLayer({
+        id: selectedLayerId,
+        type: 'line',
+        source: geojsonSourceId,
+        paint: { 'line-color': '#ff6600', 'line-width': 3 }
+      });
+    });
+    // Double-click to detect/select nearest border line or start new
+    map.on('dblclick', (e) => {
+      e.preventDefault();
+      if(!importedGeoJSON){ alert('Import GeoJSON first'); return; }
+      const clickedPoint = [e.lngLat.lng, e.lngLat.lat];
+      let nearest = findNearestLine(clickedPoint);
+      if(nearest && nearest.distance < 0.05){ // threshold km
+        selectFeature(nearest.feature);
+      } else {
+        startNewLineAt(clickedPoint);
       }
+    });
+  }
+
+  // Find nearest line feature segment to a point within threshold (km)
+  function findNearestLine(point){
+    let best = {distance: Infinity, feature:null};
+    importedGeoJSON.features.forEach(f => {
+      if(f.geometry.type === 'LineString' || f.geometry.type === "Polygon"){
+        let coords = (f.geometry.type === "Polygon") ? f.geometry.coordinates[0] : f.geometry.coordinates;
+        let line = turf.lineString(coords);
+        let pt = turf.point(point);
+        let snapped = turf.nearestPointOnLine(line, pt, {units:'kilometers'});
+        if(snapped.properties.dist < best.distance){
+          best = {distance: snapped.properties.dist, feature: f};
+        }
+      }
+    });
+    return best.feature ? best : null;
+  }
+
+  // Select a feature for editing
+  function selectFeature(feature){
+    clearEditableMarkers();
+    selectedFeature = JSON.parse(JSON.stringify(feature)); // clone
+    updateMapWithFeature(selectedFeature);
+    pushHistory();
+  }
+
+  // Start new line at clicked point
+  function startNewLineAt(point){
+    clearEditableMarkers();
+    selectedFeature = {
+      type: 'Feature',
+      geometry: {
+        type: 'LineString',
+        coordinates: [point, point]
+      }
+    };
+    updateMapWithFeature(selectedFeature);
+    pushHistory();
+  }
+
+  // Update TomTom map with selectedFeature
+  function updateMapWithFeature(feature){
+    map.getSource(geojsonSourceId).setData(feature);
+    addMarkersForFeature(feature);
+    updateGeoJsonArea(feature);
+  }
+
+  // Add draggable markers at vertices
+  function addMarkersForFeature(feature){
+    clearEditableMarkers();
+    const coords = feature.geometry.type === 'Polygon' ? feature.geometry.coordinates[0] : feature.geometry.coordinates;
+    coords.forEach((coord,i) => {
+      let el = document.createElement('div');
+      el.style.width = '12px';
+      el.style.height = '12px';
+      el.style.border = '2px solid #fff';
+      el.style.background = '#ff6600';
+      el.style.borderRadius = '50%';
+      el.style.boxShadow = '0 1px 2px rgba(0,0,0,0.5)';
+      el.style.cursor = 'move';
+      const marker = new tt.Marker({element: el, draggable: true})
+                      .setLngLat(coord)
+                      .addTo(map);
+      marker._vertexIndex = i;
+      marker.on('dragend', e => {
+        let lnglat = marker.getLngLat();
+        selectedFeature.geometry.coordinates[marker._vertexIndex] = [lnglat.lng, lnglat.lat];
+        if(selectedFeature.geometry.type === 'Polygon'){
+          // close polygon by syncing last point
+          let ring = selectedFeature.geometry.coordinates;
+          ring[ring.length-1] = ring[0];
+        }
+        updateMapWithFeature(selectedFeature);
+        pushHistory();
+      });
+      editableMarkers.push(marker);
+    });
+  }
+
+  // Clear draggable markers
+  function clearEditableMarkers(){
+    editableMarkers.forEach(m => m.remove());
+    editableMarkers = [];
+  }
+
+  // Undo/Redo support
+  function pushHistory(){
+    historyStack.push(JSON.stringify(selectedFeature));
+    redoStack = [];
+  }
+  function undo(){
+    if(historyStack.length > 1){
+      redoStack.push(historyStack.pop());
+      selectedFeature = JSON.parse(historyStack[historyStack.length-1]);
+      updateMapWithFeature(selectedFeature);
+    } else alert('Nothing to undo');
+  }
+  function redo(){
+    if(redoStack.length > 0){
+      selectedFeature = JSON.parse(redoStack.pop());
+      updateMapWithFeature(selectedFeature);
+      historyStack.push(JSON.stringify(selectedFeature));
+    } else alert('Nothing to redo');
+  }
+
+  // Densify line: insert midpoints between coords
+  function densifyLine(){
+    if(!selectedFeature) return alert('Select a feature first');
+    let coords = selectedFeature.geometry.coordinates;
+    let densified = [];
+    for(let i=0; i<coords.length-1; i++){
+      densified.push(coords[i]);
+      const mid = [(coords[i][0]+coords[i+1][0])/2, (coords[i][1]+coords[i+1][1])/2];
+      densified.push(mid);
     }
-    // fallback: straight line between start and end
-    const fallback = { type:'Feature', properties:{}, geometry:{ type:'LineString', coordinates: [ [start.lng, start.lat], [end.lng, end.lat] ] } };
-    map.getSource('route').setData(fallback);
-    map.getSource('routePoints').setData({ type:'FeatureCollection', features:[
-      { type:'Feature', properties:{role:'start'}, geometry:{ type:'Point', coordinates: [start.lng, start.lat] } },
-      { type:'Feature', properties:{role:'end'}, geometry:{ type:'Point', coordinates: [end.lng, end.lat] } }
-    ]});
-  });
-
-  // clear route
-  document.getElementById('btnClearRoute').addEventListener('click', ()=>{
-    map.getSource('route').setData({ type:'FeatureCollection', features:[]});
-    map.getSource('routePoints').setData({ type:'FeatureCollection', features:[]});
-  });
-
-  // --- Quick jump buttons (search by properties.name) ---
-  document.getElementById('btnNethrana').addEventListener('click', ()=>jumpTo('Nethrana'));
-  document.getElementById('btnKothari').addEventListener('click', ()=>jumpTo('Kothari'));
-  document.getElementById('btnRupawas').addEventListener('click', ()=>jumpTo('Rupawas'));
-  function jumpTo(name){
-    if(!currentGeo) return;
-    const f = currentGeo.features.find(x => x.properties && x.properties.name === name);
-    if(!f) return alert('Place not found: ' + name);
-    const center = (f.geometry.type === 'Point' ? f.geometry.coordinates : getFeatureCenter(f));
-    map.flyTo({ center: center, zoom: 15 });
+    densified.push(coords[coords.length-1]);
+    selectedFeature.geometry.coordinates = densified;
+    updateMapWithFeature(selectedFeature);
+    pushHistory();
   }
 
-  // --- Top search field binding ---
-  document.getElementById('topSearchBtn').addEventListener('click', ()=>{
-    const q = document.getElementById('topSearch').value.trim().toLowerCase();
-    if(!q) return alert('Enter search term');
-    const f = currentGeo.features.find(ff => ff.properties && ff.properties.name && ff.properties.name.toLowerCase().includes(q));
-    if(!f) return alert('No match');
-    const center = (f.geometry.type === 'Point' ? f.geometry.coordinates : getFeatureCenter(f));
-    map.flyTo({ center: center, zoom: 16 });
-    document.getElementById('featureJson').value = JSON.stringify(f, null, 2);
-    currentClickedFeature = f;
-    openPanel();
-  });
-
-  // --- Utility: get center of feature ---
-  function getFeatureCenter(feat){
-    const coords = [];
-    (function walk(c){
-      if(typeof c[0] === 'number'){ coords.push(c); return; }
-      c.forEach(walk);
-    })(feat.geometry.coordinates);
-    let sx=0, sy=0; coords.forEach(c=>{ sx+=c[0]; sy+=c[1]; });
-    return [sx/coords.length, sy/coords.length];
+  // Approve selected line feature - add to finalFeatures collection
+  function approveFeature(){
+    if(!selectedFeature) return alert('Select and edit feature before approving');
+    finalFeatures.push(selectedFeature);
+    selectedFeature = null;
+    historyStack = [];
+    redoStack = [];
+    updateFinalFeaturesMap();
+    clearEditableMarkers();
+    updateGeoJsonArea({type:'FeatureCollection', features: finalFeatures});
   }
 
-  // ensure route & routePoints sources exist before first use
-  map.on('idle', ()=> {
-    if(!map.getSource('route')) map.addSource('route',{ type:'geojson', data:{ type:'FeatureCollection', features:[] }});
-    if(!map.getSource('routePoints')) map.addSource('routePoints',{ type:'geojson', data:{ type:'FeatureCollection', features:[] }});
-  });
-
-  // --- initial UI: ensure markers exist after load ---
-  function ensureMarkers(){
-    if(!startMarker || !endMarker) initDraggableMarkers();
+  // Update final features layer on TomTom
+  function updateFinalFeaturesMap(){
+    if(!map.getSource('finalSource')){
+      map.addSource('finalSource', {type:'geojson', data: {type:'FeatureCollection',features: finalFeatures}});
+      map.addLayer({id:'finalLayer', type:'line', source:'finalSource', paint:{'line-color':'#00AA44','line-width':3}});
+    } else {
+      map.getSource('finalSource').setData({type:'FeatureCollection',features:finalFeatures});
+    }
   }
 
-  // init draggable markers (if not created earlier)
-  function initDraggableMarkers(){
-    // create default markers if not exist
-    if(window.startMarker || window.endMarker) return;
-    const sEl = document.createElement('div'); sEl.style.width='18px'; sEl.style.height='18px'; sEl.style.background='#10b981'; sEl.style.border='2px solid #fff'; sEl.style.borderRadius='50%'; sEl.style.boxShadow='0 1px 4px rgba(0,0,0,0.3)';
-    const eEl = document.createElement('div'); eEl.style.width='18px'; eEl.style.height='18px'; eEl.style.background='#1a73e8'; eEl.style.border='2px solid #fff'; eEl.style.borderRadius='50%'; eEl.style.boxShadow='0 1px 4px rgba(0,0,0,0.3)';
-    window.startMarker = new maplibregl.Marker({ element: sEl, draggable:true }).setLngLat([73.341,27.743]).addTo(map);
-    window.endMarker = new maplibregl.Marker({ element: eEl, draggable:true }).setLngLat([73.344,27.7425]).addTo(map);
-    // on drag end optionally recompute route
-    window.startMarker.on('dragend', ()=>{ /* optional update */ });
-    window.endMarker.on('dragend', ()=>{ /* optional update */ });
+  // Clear all data and reset
+  function clearAll(){
+    importedGeoJSON = null; finalFeatures = []; selectedFeature = null;
+    historyStack=[]; redoStack=[];
+    map.getSource(geojsonSourceId).setData({type:'FeatureCollection',features:[]});
+    if(map.getSource('finalSource')) map.getSource('finalSource').setData({type:'FeatureCollection',features: finalFeatures});
+    clearEditableMarkers();
+    document.getElementById('geoJsonArea').value = '';
   }
 
-  // call ensureMarkers when map loaded
-  map.on('load', ensureMarkers);
+  // Update textarea with current GeoJSON
+  function updateGeoJsonArea(data){
+    document.getElementById('geoJsonArea').value = JSON.stringify(data, null, 2);
+  }
+  // Import GeoJSON from textarea
+  function importGeoJson(){
+    try{
+      let val = document.getElementById('geoJsonArea').value;
+      let gj = JSON.parse(val);
+      if(!gj.type || gj.type !== 'FeatureCollection') throw new Error('GeoJSON must be FeatureCollection');
+      importedGeoJSON = gj;
+      finalFeatures = [];
+      clearEditableMarkers();
+      historyStack = [];
+      redoStack = [];
+      map.getSource(geojsonSourceId).setData(gj);
+      // Automatically approve all features to final layer for demonstration
+      finalFeatures = gj.features.slice();
+      updateFinalFeaturesMap();
+      alert('GeoJSON imported successfully. Double-click to select or start drawing lines.');
+    } catch(e){
+      alert('Invalid GeoJSON: ' + e.message);
+    }
+  }
 
-  // --- Keyboard: ESC closes panel on small screens ---
-  window.addEventListener('keydown', (e)=> { if(e.key === 'Escape') { closePanel(); } });
+  // Download final GeoJSON
+  function downloadGeoJSON(){
+    const blob = new Blob([JSON.stringify({type:'FeatureCollection',features: finalFeatures}, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'india-borders.geojson';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
-  // done
-  </script>
+  // Google Map + Overlay implementation (basic toggle)
+  function toggleMapSource(source){
+    if(source === 'tomtom'){
+      document.getElementById('tomtomMap').style.display = 'block';
+      document.getElementById('googleIframe').style.display = 'none';
+      document.getElementById('overlaySvg').style.display = 'none';
+    } else {
+      document.getElementById('tomtomMap').style.display = 'none';
+      document.getElementById('googleIframe').style.display = 'block';
+      document.getElementById('overlaySvg').style.display = 'block';
+    }
+  }
+
+  // Sketch overlay basics - For advanced editing you need more complex logic
+  // Here we just show an example setup for overlay SVG element for future drawing
+  let overlaySvg, overlayPath;
+  function setupOverlay(){
+    overlaySvg = document.getElementById('overlaySvg');
+    overlaySvg.innerHTML = ''; // clear previous
+    overlayPath = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    overlayPath.setAttribute('stroke', '#ff6600');
+    overlayPath.setAttribute('stroke-width', '3');
+    overlayPath.setAttribute('fill', 'none');
+    overlaySvg.appendChild(overlayPath);
+    // Example: Initialize polyline with no points
+    overlayPath.setAttribute('points', '');
+    // Add mouse event listeners for drawing if required
+  }
+
+  // Event binding
+  window.onload = () => {
+    initTomTom();
+    toggleMapSource('tomtom');
+    setupOverlay();
+
+    document.getElementById('importBtn').onclick = importGeoJson;
+    document.getElementById('undoBtn').onclick = undo;
+    document.getElementById('redoBtn').onclick = redo;
+    document.getElementById('densifyBtn').onclick = densifyLine;
+    document.getElementById('approveBtn').onclick = approveFeature;
+    document.getElementById('clearBtn').onclick = clearAll;
+    document.getElementById('downloadBtn').onclick = downloadGeoJSON;
+
+    document.querySelectorAll('input[name="mapSource"]').forEach(radio => {
+      radio.onchange = (e) => toggleMapSource(e.target.value);
+    });
+  };
+</script>
 </body>
 </html>
