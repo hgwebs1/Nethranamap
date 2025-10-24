@@ -1,344 +1,275 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>India Border Maker</title>
-<link rel="stylesheet" href="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.19.0/maps/maps.css">
 <style>
-  html,body { height:100%; margin:0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:#f9fafb;}
-  #app { display:flex; flex-direction: column; height: 100vh; }
-  header { background:#2563eb; color:white; font-weight:600; padding:12px; text-align:center; }
-  .map-container { flex:1; position: relative; }
-  #tomtomMap, #googleIframe, #overlaySvg {
-    position: absolute; top:0; left:0; width:100%; height:100%; border-radius: 12px; box-shadow:0 4px 12px rgba(0,0,0,0.1);
+  html, body {
+    height: 100%; margin: 0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: #f9fafb;
+    display: flex; flex-direction: column;
   }
-  #googleIframe { pointer-events:none; } /* pointer-events none so overlaySvg gets mouse */
-  #overlaySvg { pointer-events:auto; cursor:crosshair; }
-
-  .controls {
-    display: flex; flex-wrap: wrap; gap:8px; padding:10px; background:white; box-shadow:0 2px 6px rgba(0,0,0,0.1); border-radius:12px; align-items:center; justify-content:flex-start;
+  header {
+    background:#2563eb; color:white; font-weight:600;
+    text-align:center; padding: 12px; user-select:none;
   }
-  .btn {
-    background:#2563eb; border:none; border-radius:8px; color:white; padding:6px 12px; cursor:pointer; transition:0.2s; font-weight:500; font-size: 0.9rem;
+  #mapContainer {
+    flex: 1; position: relative; overflow: hidden;
   }
-  .btn:hover { background:#1e40af; transform: translateY(-1px);}
-  .btn.secondary { background:#f3f4f6; color:#111; border:1px solid #d1d5db; }
-
-  label { font-size: 0.9rem; color:#374151; margin-left: auto; }
-  textarea {
-    width: 100%; height: 120px; margin-top: 12px; font-family: monospace; font-size: 14px;
-    resize:none; border-radius:8px; border:1px solid #d1d5db; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); padding: 8px;
+  #googleMapIframe {
+    position: absolute; top:0; left:0; width:100%; height:100%; border:none;
   }
-  @media (max-width:768px){
-    .controls { flex-direction: column; align-items: flex-start; }
-    .btn { width: 100%; }
-    label { margin-left: 0; margin-top: 6px; }
+  #overlaySvg {
+    position: absolute; top:0; left:0; width:100%; height:100%;
+    pointer-events: auto; cursor: crosshair;
+  }
+  .smallIconButton {
+    position: absolute;
+    background: #2563eb;
+    border-radius: 4px;
+    width: 28px;
+    height: 28px;
+    border: none;
+    color: white;
+    font-size: 16px;
+    line-height: 28px;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    user-select: none;
+  }
+  /* Position some main feature icons top right */
+  #btnUndo { top: 10px; right: 10px; }
+  #btnRedo { top: 50px; right: 10px; }
+  #btnDraw { top: 90px; right: 10px; }
+  #btnDensify { top: 130px; right: 10px; }
+  #btnApprove { top: 170px; right: 10px; }
+  #btnClear { top: 210px; right: 10px; }
+  
+  /* Bottom control bar for zoom/pan/download */
+  #bottomControls {
+    display: flex; justify-content: center; gap: 8px;
+    padding: 6px;
+    background: white;
+    box-shadow: 0 -2px 6px rgba(0,0,0,0.1);
+    user-select: none;
+  }
+  #bottomControls button {
+    all: unset;
+    background: #2563eb;
+    color:white;
+    width: 28px; height: 28px;
+    border-radius: 4px;
+    font-size: 18px;
+    text-align: center;
+    line-height: 28px;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  #bottomControls button:hover {
+    background: #1e40af;
+  }
+  #geojsonOutput {
+    width: 100%; height: 120px; font-family: monospace; font-size: 14px;
+    resize: none; padding: 8px; border-radius: 8px; border: 1px solid #d1d5db;
+    margin-top: 12px; box-sizing: border-box;
   }
 </style>
 </head>
 <body>
-<div id="app">
-  <header>India Border Maker</header>
-  <div class="controls">
-    <label><input type="radio" name="mapSource" value="tomtom" checked> TomTom Map</label>
-    <label><input type="radio" name="mapSource" value="google"> Google Map</label>
-    <button class="btn" id="importBtn">Import GeoJSON</button>
-    <button class="btn" id="undoBtn">Undo</button>
-    <button class="btn" id="redoBtn">Redo</button>
-    <button class="btn" id="densifyBtn">Densify</button>
-    <button class="btn" id="approveBtn">Approve</button>
-    <button class="btn secondary" id="clearBtn">Clear</button>
-    <button class="btn" id="downloadBtn">Download GeoJSON</button>
-  </div>
-  <div class="map-container">
-    <div id="tomtomMap"></div>
-    <iframe id="googleIframe" src="https://maps.google.com/maps?q=india&amp;t=&amp;z=5&amp;ie=UTF8&amp;iwloc=&amp;output=embed" frameborder="0" style="display:none;"></iframe>
-    <svg id="overlaySvg" style="display:none;" xmlns="http://www.w3.org/2000/svg"></svg>
-  </div>
-  <textarea id="geoJsonArea" placeholder="Paste or edit GeoJSON here"></textarea>
+<header>India Border Maker</header>
+<div id="mapContainer">
+  <iframe id="googleMapIframe" src="https://maps.google.com/maps?q=india&amp;t=&amp;z=5&amp;ie=UTF8&amp;iwloc=&amp;output=embed" allowfullscreen></iframe>
+  <svg id="overlaySvg"></svg>
+  
+  <!-- Small top right overlay buttons -->
+  <button class="smallIconButton" id="btnUndo" title="Undo">&#8630;</button>
+  <button class="smallIconButton" id="btnRedo" title="Redo">&#8631;</button>
+  <button class="smallIconButton" id="btnDraw" title="Toggle Draw Mode">&#9998;</button>
+  <button class="smallIconButton" id="btnDensify" title="Densify Line">&#8853;</button>
+  <button class="smallIconButton" id="btnApprove" title="Approve Line">&#10003;</button>
+  <button class="smallIconButton" id="btnClear" title="Clear">&#10006;</button>
 </div>
+<div id="bottomControls">
+  <button id="zoomIn" title="Zoom In">&#43;</button>
+  <button id="zoomOut" title="Zoom Out">&#8722;</button>
+  <button id="panLeft" title="Pan Left">&#8592;</button>
+  <button id="panRight" title="Pan Right">&#8594;</button>
+  <button id="panUp" title="Pan Up">&#8593;</button>
+  <button id="panDown" title="Pan Down">&#8595;</button>
+  <button id="btnDownload" title="Download GeoJSON">&#128190;</button>
+</div>
+<textarea id="geojsonOutput" placeholder="Your GeoJSON output will appear here..." readonly></textarea>
 
-<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
-<script src="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.19.0/maps/maps-web.min.js"></script>
 <script>
   // Globals
-  const tomtomKey = '6XJgdqos3W3hYxd2ekAgNUxWQk5QWNc5';
-  let map, selectedFeature=null, editableMarkers=[], finalFeatures=[];
-  let importedGeoJSON=null, historyStack=[], redoStack=[];
-  let selectedLayerId = 'selected-layer';
-  let geojsonSourceId = 'geojson-source';
-  let densifyFactor = 1; // basic densify step
+  const svgNS = "http://www.w3.org/2000/svg";
+  const overlaySvg = document.getElementById('overlaySvg');
+  const geojsonOutput = document.getElementById('geojsonOutput');
 
-  // Initialize TomTom map
-  function initTomTom(){
-    map = tt.map({
-      key: tomtomKey,
-      container: 'tomtomMap',
-      center: [79,22],
-      zoom: 5,
-      style: 'tomtom://vector/1/basic-main'
-    });
-    map.on('load', () => {
-      map.addSource(geojsonSourceId, {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] }
-      });
-      map.addLayer({
-        id: selectedLayerId,
-        type: 'line',
-        source: geojsonSourceId,
-        paint: { 'line-color': '#ff6600', 'line-width': 3 }
-      });
-    });
-    // Double-click to detect/select nearest border line or start new
-    map.on('dblclick', (e) => {
-      e.preventDefault();
-      if(!importedGeoJSON){ alert('Import GeoJSON first'); return; }
-      const clickedPoint = [e.lngLat.lng, e.lngLat.lat];
-      let nearest = findNearestLine(clickedPoint);
-      if(nearest && nearest.distance < 0.05){ // threshold km
-        selectFeature(nearest.feature);
-      } else {
-        startNewLineAt(clickedPoint);
-      }
-    });
-  }
+  let isDrawing = false;
+  let currentLinePoints = [];
+  let linesData = []; // approved lines GeoJSON features
 
-  // Find nearest line feature segment to a point within threshold (km)
-  function findNearestLine(point){
-    let best = {distance: Infinity, feature:null};
-    importedGeoJSON.features.forEach(f => {
-      if(f.geometry.type === 'LineString' || f.geometry.type === "Polygon"){
-        let coords = (f.geometry.type === "Polygon") ? f.geometry.coordinates[0] : f.geometry.coordinates;
-        let line = turf.lineString(coords);
-        let pt = turf.point(point);
-        let snapped = turf.nearestPointOnLine(line, pt, {units:'kilometers'});
-        if(snapped.properties.dist < best.distance){
-          best = {distance: snapped.properties.dist, feature: f};
-        }
-      }
-    });
-    return best.feature ? best : null;
-  }
+  // Pixel bounds for the iframe and overlay for coordinate translation
+  let mapRect = null;
 
-  // Select a feature for editing
-  function selectFeature(feature){
-    clearEditableMarkers();
-    selectedFeature = JSON.parse(JSON.stringify(feature)); // clone
-    updateMapWithFeature(selectedFeature);
-    pushHistory();
-  }
-
-  // Start new line at clicked point
-  function startNewLineAt(point){
-    clearEditableMarkers();
-    selectedFeature = {
-      type: 'Feature',
-      geometry: {
-        type: 'LineString',
-        coordinates: [point, point]
-      }
+  // Get mouse position relative to SVG container
+  function getMousePos(evt) {
+    const CTM = overlaySvg.getScreenCTM();
+    return {
+      x: (evt.clientX - CTM.e) / CTM.a,
+      y: (evt.clientY - CTM.f) / CTM.d
     };
-    updateMapWithFeature(selectedFeature);
-    pushHistory();
   }
 
-  // Update TomTom map with selectedFeature
-  function updateMapWithFeature(feature){
-    map.getSource(geojsonSourceId).setData(feature);
-    addMarkersForFeature(feature);
-    updateGeoJsonArea(feature);
+  // Convert screen (pixel) points to approximate geographic (lat,long) - requires Google Maps API which iframe lacks,
+  // so for simplicity here we treat drawing in pixel space. To convert to lat/lng conversion you need embedded Google Maps JS API.
+  // Here we just output pixel GeoJSON for demonstration.
+  function pixelPointsToGeoJSON(points){
+    return {
+      type: "Feature",
+      geometry: {
+        type: "LineString",
+        coordinates: points.map(p => [p.x, p.y])
+      },
+      properties: {}
+    };
   }
 
-  // Add draggable markers at vertices
-  function addMarkersForFeature(feature){
-    clearEditableMarkers();
-    const coords = feature.geometry.type === 'Polygon' ? feature.geometry.coordinates[0] : feature.geometry.coordinates;
-    coords.forEach((coord,i) => {
-      let el = document.createElement('div');
-      el.style.width = '12px';
-      el.style.height = '12px';
-      el.style.border = '2px solid #fff';
-      el.style.background = '#ff6600';
-      el.style.borderRadius = '50%';
-      el.style.boxShadow = '0 1px 2px rgba(0,0,0,0.5)';
-      el.style.cursor = 'move';
-      const marker = new tt.Marker({element: el, draggable: true})
-                      .setLngLat(coord)
-                      .addTo(map);
-      marker._vertexIndex = i;
-      marker.on('dragend', e => {
-        let lnglat = marker.getLngLat();
-        selectedFeature.geometry.coordinates[marker._vertexIndex] = [lnglat.lng, lnglat.lat];
-        if(selectedFeature.geometry.type === 'Polygon'){
-          // close polygon by syncing last point
-          let ring = selectedFeature.geometry.coordinates;
-          ring[ring.length-1] = ring[0];
-        }
-        updateMapWithFeature(selectedFeature);
-        pushHistory();
+  // Draw polyline SVG element from currentLinePoints
+  let polyline = document.createElementNS(svgNS, 'polyline');
+  polyline.setAttribute('fill', 'none');
+  polyline.setAttribute('stroke', '#ff6600');
+  polyline.setAttribute('stroke-width', '3');
+  overlaySvg.appendChild(polyline);
+
+  function updatePolyline(){
+    let pointsStr = currentLinePoints.map(p => `${p.x},${p.y}`).join(' ');
+    polyline.setAttribute('points', pointsStr);
+  }
+
+  // Handle draw mode toggle
+  document.getElementById('btnDraw').addEventListener('click', () => {
+    isDrawing = !isDrawing;
+    if(isDrawing){
+      currentLinePoints = [];
+      updatePolyline();
+      geojsonOutput.value = '';
+      overlaySvg.style.cursor = 'crosshair';
+    } else if(currentLinePoints.length > 1){
+      linesData.push(pixelPointsToGeoJSON(currentLinePoints));
+      geojsonOutput.value = JSON.stringify({type: "FeatureCollection", features: linesData}, null, 2);
+    }
+  });
+
+  // Capture clicks to add points if drawing mode active
+  overlaySvg.addEventListener('click', evt => {
+    if(!isDrawing) return;
+    const pos = getMousePos(evt);
+    currentLinePoints.push(pos);
+    updatePolyline();
+  });
+
+  // Undo function: remove last point from current line or last complete line
+  document.getElementById('btnUndo').addEventListener('click', () => {
+    if(isDrawing){
+      currentLinePoints.pop();
+      updatePolyline();
+    } else if(linesData.length > 0){
+      linesData.pop();
+      geojsonOutput.value = JSON.stringify({type:"FeatureCollection", features: linesData}, null, 2);
+    }
+  });
+
+  // Redo is not supported in this simple example
+
+  // Clear all lines and drawing
+  document.getElementById('btnClear').addEventListener('click', () => {
+    currentLinePoints = [];
+    linesData = [];
+    updatePolyline();
+    geojsonOutput.value = '';
+  });
+
+  // Densify lines - add midpoint between every two coordinates
+  document.getElementById('btnDensify').addEventListener('click', () => {
+    function densifyCoords(coords){
+      let densified = [];
+      for(let i=0;i<coords.length-1;i++){
+        densified.push(coords[i]);
+        let midX = (coords[i][0] + coords[i+1][0]) / 2;
+        let midY = (coords[i][1] + coords[i+1][1]) / 2;
+        densified.push([midX, midY]);
+      }
+      densified.push(coords[coords.length -1]);
+      return densified;
+    }
+    if(isDrawing){
+      const coords = currentLinePoints.map(p => [p.x, p.y]);
+      const densifiedCoords = densifyCoords(coords);
+      currentLinePoints = densifiedCoords.map(c => ({x:c[0], y:c[1]}));
+      updatePolyline();
+    } else if(linesData.length > 0){
+      linesData = linesData.map(f => {
+        return {...f, geometry:{...f.geometry, coordinates: densifyCoords(f.geometry.coordinates)}};
       });
-      editableMarkers.push(marker);
-    });
-  }
-
-  // Clear draggable markers
-  function clearEditableMarkers(){
-    editableMarkers.forEach(m => m.remove());
-    editableMarkers = [];
-  }
-
-  // Undo/Redo support
-  function pushHistory(){
-    historyStack.push(JSON.stringify(selectedFeature));
-    redoStack = [];
-  }
-  function undo(){
-    if(historyStack.length > 1){
-      redoStack.push(historyStack.pop());
-      selectedFeature = JSON.parse(historyStack[historyStack.length-1]);
-      updateMapWithFeature(selectedFeature);
-    } else alert('Nothing to undo');
-  }
-  function redo(){
-    if(redoStack.length > 0){
-      selectedFeature = JSON.parse(redoStack.pop());
-      updateMapWithFeature(selectedFeature);
-      historyStack.push(JSON.stringify(selectedFeature));
-    } else alert('Nothing to redo');
-  }
-
-  // Densify line: insert midpoints between coords
-  function densifyLine(){
-    if(!selectedFeature) return alert('Select a feature first');
-    let coords = selectedFeature.geometry.coordinates;
-    let densified = [];
-    for(let i=0; i<coords.length-1; i++){
-      densified.push(coords[i]);
-      const mid = [(coords[i][0]+coords[i+1][0])/2, (coords[i][1]+coords[i+1][1])/2];
-      densified.push(mid);
+      geojsonOutput.value = JSON.stringify({type: "FeatureCollection", features: linesData}, null, 2);
     }
-    densified.push(coords[coords.length-1]);
-    selectedFeature.geometry.coordinates = densified;
-    updateMapWithFeature(selectedFeature);
-    pushHistory();
-  }
+  });
 
-  // Approve selected line feature - add to finalFeatures collection
-  function approveFeature(){
-    if(!selectedFeature) return alert('Select and edit feature before approving');
-    finalFeatures.push(selectedFeature);
-    selectedFeature = null;
-    historyStack = [];
-    redoStack = [];
-    updateFinalFeaturesMap();
-    clearEditableMarkers();
-    updateGeoJsonArea({type:'FeatureCollection', features: finalFeatures});
-  }
-
-  // Update final features layer on TomTom
-  function updateFinalFeaturesMap(){
-    if(!map.getSource('finalSource')){
-      map.addSource('finalSource', {type:'geojson', data: {type:'FeatureCollection',features: finalFeatures}});
-      map.addLayer({id:'finalLayer', type:'line', source:'finalSource', paint:{'line-color':'#00AA44','line-width':3}});
-    } else {
-      map.getSource('finalSource').setData({type:'FeatureCollection',features:finalFeatures});
+  // Approve current drawing as a completed line
+  document.getElementById('btnApprove').addEventListener('click', () => {
+    if(currentLinePoints.length < 2){
+      alert('Draw at least two points before approving');
+      return;
     }
-  }
+    linesData.push(pixelPointsToGeoJSON(currentLinePoints));
+    currentLinePoints = [];
+    updatePolyline();
+    geojsonOutput.value = JSON.stringify({type:"FeatureCollection", features: linesData}, null, 2);
+    isDrawing = false;
+    overlaySvg.style.cursor = 'default';
+  });
 
-  // Clear all data and reset
-  function clearAll(){
-    importedGeoJSON = null; finalFeatures = []; selectedFeature = null;
-    historyStack=[]; redoStack=[];
-    map.getSource(geojsonSourceId).setData({type:'FeatureCollection',features:[]});
-    if(map.getSource('finalSource')) map.getSource('finalSource').setData({type:'FeatureCollection',features: finalFeatures});
-    clearEditableMarkers();
-    document.getElementById('geoJsonArea').value = '';
-  }
-
-  // Update textarea with current GeoJSON
-  function updateGeoJsonArea(data){
-    document.getElementById('geoJsonArea').value = JSON.stringify(data, null, 2);
-  }
-  // Import GeoJSON from textarea
-  function importGeoJson(){
-    try{
-      let val = document.getElementById('geoJsonArea').value;
-      let gj = JSON.parse(val);
-      if(!gj.type || gj.type !== 'FeatureCollection') throw new Error('GeoJSON must be FeatureCollection');
-      importedGeoJSON = gj;
-      finalFeatures = [];
-      clearEditableMarkers();
-      historyStack = [];
-      redoStack = [];
-      map.getSource(geojsonSourceId).setData(gj);
-      // Automatically approve all features to final layer for demonstration
-      finalFeatures = gj.features.slice();
-      updateFinalFeaturesMap();
-      alert('GeoJSON imported successfully. Double-click to select or start drawing lines.');
-    } catch(e){
-      alert('Invalid GeoJSON: ' + e.message);
-    }
-  }
-
-  // Download final GeoJSON
-  function downloadGeoJSON(){
-    const blob = new Blob([JSON.stringify({type:'FeatureCollection',features: finalFeatures}, null, 2)], {type:'application/json'});
+  // Download GeoJSON
+  document.getElementById('btnDownload').addEventListener('click', () => {
+    const blob = new Blob([geojsonOutput.value], {type: 'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = 'india-borders.geojson';
     a.click();
     URL.revokeObjectURL(url);
+  });
+
+  // Zoom/pan buttons affecting iframe (simple scroll handlers)
+  const iframe = document.getElementById('googleMapIframe');
+  let zoomLevel = 5;
+  function updateIframeSrc(){
+    iframe.src = `https://maps.google.com/maps?q=india&t=&z=${zoomLevel}&ie=UTF8&iwloc=&output=embed`;
   }
-
-  // Google Map + Overlay implementation (basic toggle)
-  function toggleMapSource(source){
-    if(source === 'tomtom'){
-      document.getElementById('tomtomMap').style.display = 'block';
-      document.getElementById('googleIframe').style.display = 'none';
-      document.getElementById('overlaySvg').style.display = 'none';
-    } else {
-      document.getElementById('tomtomMap').style.display = 'none';
-      document.getElementById('googleIframe').style.display = 'block';
-      document.getElementById('overlaySvg').style.display = 'block';
-    }
+  document.getElementById('zoomIn').addEventListener('click', () => {
+    if(zoomLevel < 20) zoomLevel++;
+    updateIframeSrc();
+  });
+  document.getElementById('zoomOut').addEventListener('click', () => {
+    if(zoomLevel > 1) zoomLevel--;
+    updateIframeSrc();
+  });
+  // Pan left-right/up-down simply reload map at shifts (approximation)
+  let centerLat = 22; // Approx initial values
+  let centerLng = 79;
+  function pan(deltaLat, deltaLng){
+    centerLat += deltaLat;
+    centerLng += deltaLng;
+    iframe.src = `https://maps.google.com/maps?q=${centerLat},${centerLng}&t=&z=${zoomLevel}&ie=UTF8&iwloc=&output=embed`;
   }
+  document.getElementById('panLeft').addEventListener('click', () => { pan(0, -1); });
+  document.getElementById('panRight').addEventListener('click', () => { pan(0, 1); });
+  document.getElementById('panUp').addEventListener('click', () => { pan(1, 0); });
+  document.getElementById('panDown').addEventListener('click', () => { pan(-1, 0); });
 
-  // Sketch overlay basics - For advanced editing you need more complex logic
-  // Here we just show an example setup for overlay SVG element for future drawing
-  let overlaySvg, overlayPath;
-  function setupOverlay(){
-    overlaySvg = document.getElementById('overlaySvg');
-    overlaySvg.innerHTML = ''; // clear previous
-    overlayPath = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-    overlayPath.setAttribute('stroke', '#ff6600');
-    overlayPath.setAttribute('stroke-width', '3');
-    overlayPath.setAttribute('fill', 'none');
-    overlaySvg.appendChild(overlayPath);
-    // Example: Initialize polyline with no points
-    overlayPath.setAttribute('points', '');
-    // Add mouse event listeners for drawing if required
-  }
-
-  // Event binding
-  window.onload = () => {
-    initTomTom();
-    toggleMapSource('tomtom');
-    setupOverlay();
-
-    document.getElementById('importBtn').onclick = importGeoJson;
-    document.getElementById('undoBtn').onclick = undo;
-    document.getElementById('redoBtn').onclick = redo;
-    document.getElementById('densifyBtn').onclick = densifyLine;
-    document.getElementById('approveBtn').onclick = approveFeature;
-    document.getElementById('clearBtn').onclick = clearAll;
-    document.getElementById('downloadBtn').onclick = downloadGeoJSON;
-
-    document.querySelectorAll('input[name="mapSource"]').forEach(radio => {
-      radio.onchange = (e) => toggleMapSource(e.target.value);
-    });
-  };
 </script>
 </body>
 </html>
