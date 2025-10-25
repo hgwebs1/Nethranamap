@@ -1,412 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
-<head<!DOCTYPE html>
-<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dual Map Viewer – Fullscreen & Style Switch</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dual Map Viewer – Realistic OSM Borders</title>
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-
-  <style>
-    html, body {
-      margin:0; padding:0; height:100%; width:100%; font-family: system-ui, sans-serif;
-      background: #f0f0f0;
-    }
-
-    .map-container {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      transition: all 0.4s ease;
-    }
-
-    .map-box {
-      flex: 1;
-      position: relative;
-      border-bottom: 2px solid #ccc;
-      transition: all 0.3s ease;
-    }
-
-    .map-label {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0,0,0,0.6);
-      color: white;
-      padding: 6px 10px;
-      border-radius: 8px;
-      font-size: 14px;
-      z-index: 1001;
-      cursor: pointer;
-      user-select: none;
-    }
-
-    .map-label:hover {
-      background: rgba(0,0,0,0.8);
-    }
-
-    .style-selector {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: rgba(255,255,255,0.9);
-      border-radius: 8px;
-      padding: 8px 10px;
-      font-size: 13px;
-      z-index: 1002;
-    }
-
-    .style-selector label {
-      margin-right: 8px;
-      cursor: pointer;
-    }
-
-    #status {
-      position: fixed;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.7);
-      color: white;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 13px;
-      z-index: 2000;
-    }
-
-    .fullscreen {
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      z-index: 9999;
-      border: none !important;
-    }
-
-    @media(max-width:768px){
-      .map-label{font-size:12px;padding:4px 8px;}
-      .style-selector{font-size:11px;}
-    }
-  </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<style>
+html, body { margin:0; padding:0; height:100%; width:100%; font-family: system-ui, sans-serif; background:#f0f0f0; }
+.map-container { display:flex; flex-direction:column; height:50vh; transition: all 0.4s ease; }
+.map-box { flex:1; position:relative; border-bottom:2px solid #ccc; transition: all 0.3s ease; }
+.map-label { position:absolute; top:10px; left:10px; background: rgba(0,0,0,0.6); color:white; padding:6px 10px; border-radius:8px; font-size:14px; z-index:1001; cursor:pointer; user-select:none; }
+.map-label:hover { background: rgba(0,0,0,0.8); }
+.style-selector { position:absolute; top:10px; right:10px; background: rgba(255,255,255,0.9); border-radius:8px; padding:8px 10px; font-size:13px; z-index:1002; }
+.style-selector label { margin-right:8px; cursor:pointer; }
+#status { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 6px 12px; border-radius: 6px; font-size: 13px; z-index: 2000; }
+.fullscreen { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 9999; border: none !important; }
+#control-panel { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.95); padding:10px 14px; border-radius:8px; z-index: 1500; font-size:14px; }
+#control-panel input { width:60px; margin-right:10px; }
+#log-box { width:300px; height:150px; font-size:12px; margin-top:6px; }
+@media(max-width:768px){ .map-label{font-size:12px;padding:4px 8px;} .style-selector{font-size:11px;} #control-panel { width:90%; font-size:12px; } #log-box{width:100%;} }
+</style>
 </head>
 <body>
-  <div class="map-container">
-    <div class="map-box" id="osm-box">
-      <div class="map-label" id="osm-label">🗺️ OpenStreetMap</div>
-      <div class="style-selector" id="osm-style">
-        <label><input type="radio" name="osm-style" value="standard" checked> Standard</label>
-        <label><input type="radio" name="osm-style" value="satellite"> Satellite</label>
-      </div>
-      <div id="map1" style="height:100%;"></div>
-    </div>
 
-    <div class="map-box" id="ofm-box">
-      <div class="map-label" id="ofm-label">🌐 OpenFreeMap</div>
-      <div class="style-selector" id="ofm-style">
-        <label><input type="radio" name="ofm-style" value="standard" checked> Standard</label>
-        <label><input type="radio" name="ofm-style" value="satellite"> Satellite</label>
-      </div>
-      <div id="map2" style="height:100%;"></div>
+<div class="map-container">
+  <div class="map-box" id="osm-box">
+    <div class="map-label" id="osm-label">🗺️ OpenStreetMap</div>
+    <div class="style-selector" id="osm-style">
+      <label><input type="radio" name="osm-style" value="standard" checked> Standard</label>
+      <label><input type="radio" name="osm-style" value="satellite"> Satellite</label>
     </div>
+    <div id="map1" style="height:100%;"></div>
   </div>
-
-  <div id="status">Loading maps…</div>
-
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
-    const statusBox = document.getElementById('status');
-
-    function setStatus(msg, isError=false){
-      statusBox.textContent = msg;
-      statusBox.style.background = isError ? "rgba(200,0,0,0.7)" : "rgba(0,0,0,0.7)";
-    }
-
-    const center = [20,78];
-    const zoom = 4;
-
-    // 🌍 Map 1 – OpenStreetMap
-    const map1 = L.map('map1', {zoomControl:true}).setView(center, zoom);
-    let osmLayers = {
-      standard: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'© OpenStreetMap' }).addTo(map1),
-      satellite: L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { subdomains:['mt0','mt1','mt2','mt3'], maxZoom:19, attribution:'© Google Satellite' })
-    };
-
-    // 🌍 Map 2 – OpenFreeMap
-    const map2 = L.map('map2', {zoomControl:true}).setView(center, zoom);
-    let ofmLayers = {
-      standard: L.tileLayer('https://tile.openfreemap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'© OpenFreeMap contributors' }).addTo(map2),
-      satellite: L.tileLayer('https://tiles.freemap.sk/S/{z}/{x}/{y}.png', { maxZoom:19, attribution:'© Freemap Slovakia / OpenStreetMap' })
-    };
-
-    setStatus("Maps loaded. Loading borders…");
-
-    // 🌟 GeoJSON borders with dynamic weight & dark color
-    const borderColor = '#B0A0AA'; // slightly darker than #D0C0CA
-    const baseWeight = 1.5; // base pixel width
-
-    function geoJsonStyle() {
-      return { color: borderColor, weight: baseWeight, opacity:1, fill:false };
-    }
-
-    function updateBorderWidth(layer, map) {
-      const zoom = map.getZoom();
-      // Dynamic weight formula to visually match OSM border thickness
-      const newWeight = baseWeight * Math.pow(2, 4 - zoom); 
-      layer.setStyle({ weight: newWeight });
-    }
-
-    fetch('jkl.json').then(r=>{
-      if(!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json();
-    }).then(data=>{
-      const border1 = L.geoJSON(data, geoJsonStyle()).addTo(map1);
-      const border2 = L.geoJSON(data, geoJsonStyle()).addTo(map2);
-
-      map1.fitBounds(border1.getBounds(), { padding:[20,20] });
-      map2.fitBounds(border2.getBounds(), { padding:[20,20] });
-
-      // Dynamic weight updates on zoom
-      map1.on('zoomend', ()=>updateBorderWidth(border1, map1));
-      map2.on('zoomend', ()=>updateBorderWidth(border2, map2));
-
-      setStatus("✅ Borders loaded successfully.");
-      setTimeout(()=>statusBox.style.display="none",2000);
-    }).catch(err=>{
-      console.warn("GeoJSON load failed:", err);
-      setStatus("⚠️ Border data missing or failed to load. Maps loaded fine.",true);
-    });
-
-    // 🌟 Style switch events
-    document.querySelectorAll('input[name="osm-style"]').forEach(radio=>{
-      radio.addEventListener('change', e=>{
-        Object.values(osmLayers).forEach(l=>map1.removeLayer(l));
-        osmLayers[e.target.value].addTo(map1);
-      });
-    });
-
-    document.querySelectorAll('input[name="ofm-style"]').forEach(radio=>{
-      radio.addEventListener('change', e=>{
-        Object.values(ofmLayers).forEach(l=>map2.removeLayer(l));
-        ofmLayers[e.target.value].addTo(map2);
-      });
-    });
-
-    // 🌟 Fullscreen toggle
-    const osmBox = document.getElementById('osm-box');
-    const ofmBox = document.getElementById('ofm-box');
-    let osmFull = false, ofmFull = false;
-
-    document.getElementById('osm-label').addEventListener('click', ()=>{
-      osmFull = !osmFull;
-      if(osmFull){ osmBox.classList.add('fullscreen'); ofmBox.style.display='none'; }
-      else{ osmBox.classList.remove('fullscreen'); ofmBox.style.display='flex'; map1.invalidateSize(); }
-      map1.invalidateSize();
-    });
-
-    document.getElementById('ofm-label').addEventListener('click', ()=>{
-      ofmFull = !ofmFull;
-      if(ofmFull){ ofmBox.classList.add('fullscreen'); osmBox.style.display='none'; }
-      else{ ofmBox.classList.remove('fullscreen'); osmBox.style.display='flex'; map2.invalidateSize(); }
-      map2.invalidateSize();
-    });
-  </script>
-</body>
-</html>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dual Map Viewer â Fullscreen & Style Switch</title>
-
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-
-  <style>
-    html, body {
-      margin:0; padding:0; height:100%; width:100%; font-family: system-ui, sans-serif;
-      background: #f0f0f0;
-    }
-
-    .map-container {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      transition: all 0.4s ease;
-    }
-
-    .map-box {
-      flex: 1;
-      position: relative;
-      border-bottom: 2px solid #ccc;
-      transition: all 0.3s ease;
-    }
-
-    .map-label {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0,0,0,0.6);
-      color: white;
-      padding: 6px 10px;
-      border-radius: 8px;
-      font-size: 14px;
-      z-index: 1001;
-      cursor: pointer;
-      user-select: none;
-    }
-
-    .map-label:hover {
-      background: rgba(0,0,0,0.8);
-    }
-
-    .style-selector {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: rgba(255,255,255,0.9);
-      border-radius: 8px;
-      padding: 8px 10px;
-      font-size: 13px;
-      z-index: 1002;
-    }
-
-    .style-selector label {
-      margin-right: 8px;
-      cursor: pointer;
-    }
-
-    #status {
-      position: fixed;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.7);
-      color: white;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 13px;
-      z-index: 2000;
-    }
-
-    .fullscreen {
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      z-index: 9999;
-      border: none !important;
-    }
-
-    @media(max-width:768px){
-      .map-label{font-size:12px;padding:4px 8px;}
-      .style-selector{font-size:11px;}
-    }
-  </style>
-</head>
-<body>
-  <div class="map-container">
-    <div class="map-box" id="osm-box">
-      <div class="map-label" id="osm-label">ðºï¸ OpenStreetMap</div>
-      <div class="style-selector" id="osm-style">
-        <label><input type="radio" name="osm-style" value="standard" checked> Standard</label>
-        <label><input type="radio" name="osm-style" value="satellite"> Satellite</label>
-      </div>
-      <div id="map1" style="height:100%;"></div>
+  <div class="map-box" id="ofm-box">
+    <div class="map-label" id="ofm-label">🌐 OpenFreeMap</div>
+    <div class="style-selector" id="ofm-style">
+      <label><input type="radio" name="ofm-style" value="standard" checked> Standard</label>
+      <label><input type="radio" name="ofm-style" value="satellite"> Satellite</label>
     </div>
-
-    <div class="map-box" id="ofm-box">
-      <div class="map-label" id="ofm-label">ð OpenFreeMap</div>
-      <div class="style-selector" id="ofm-style">
-        <label><input type="radio" name="ofm-style" value="standard" checked> Standard</label>
-        <label><input type="radio" name="ofm-style" value="satellite"> Satellite</label>
-      </div>
-      <div id="map2" style="height:100%;"></div>
-    </div>
+    <div id="map2" style="height:100%;"></div>
   </div>
+</div>
 
-  <div id="status">Loading mapsâ¦</div>
+<div id="status">Loading maps…</div>
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
-    const statusBox = document.getElementById('status');
+<div id="control-panel">
+  Zoom Override: <input type="number" id="zoom-input" min="1" max="19" value="4">
+  Line Width: <input type="number" id="line-input" step="0.1" value="1.5">
+  <button id="save-btn">Save Log</button>
+  <textarea id="log-box" readonly></textarea>
+</div>
 
-    function setStatus(msg, isError=false){
-      statusBox.textContent = msg;
-      statusBox.style.background = isError ? "rgba(200,0,0,0.7)" : "rgba(0,0,0,0.7)";
-    }
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+const statusBox = document.getElementById('status');
+function setStatus(msg, isError=false){
+  statusBox.textContent = msg;
+  statusBox.style.background = isError ? "rgba(200,0,0,0.7)" : "rgba(0,0,0,0.7)";
+}
 
-    const center = [20,78];
-    const zoom = 4;
+const center = [20,78];
+const zoom = 4;
 
-    // ð Map 1 â OpenStreetMap
-    const map1 = L.map('map1', {zoomControl:true}).setView(center, zoom);
-    let osmLayers = {
-      standard: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'Â© OpenStreetMap' }).addTo(map1),
-      satellite: L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { subdomains:['mt0','mt1','mt2','mt3'], maxZoom:19, attribution:'Â© Google Satellite' })
-    };
+// OSM Map
+const map1 = L.map('map1', {zoomControl:true}).setView(center, zoom);
+let osmLayers = {
+  standard: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'© OpenStreetMap' }).addTo(map1),
+  satellite: L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { subdomains:['mt0','mt1','mt2','mt3'], maxZoom:19, attribution:'© Google Satellite' })
+};
 
-    // ð Map 2 â OpenFreeMap
-    const map2 = L.map('map2', {zoomControl:true}).setView(center, zoom);
-    let ofmLayers = {
-      standard: L.tileLayer('https://tile.openfreemap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'Â© OpenFreeMap contributors' }).addTo(map2),
-      satellite: L.tileLayer('https://tiles.freemap.sk/S/{z}/{x}/{y}.png', { maxZoom:19, attribution:'Â© Freemap Slovakia / OpenStreetMap' })
-    };
+// OFM Map
+const map2 = L.map('map2', {zoomControl:true}).setView(center, zoom);
+let ofmLayers = {
+  standard: L.tileLayer('https://tile.openfreemap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'© OpenFreeMap contributors' }).addTo(map2),
+  satellite: L.tileLayer('https://tiles.freemap.sk/S/{z}/{x}/{y}.png', { maxZoom:19, attribution:'© Freemap Slovakia / OpenStreetMap' })
+};
 
-    setStatus("Maps loaded. Loading bordersâ¦");
+setStatus("Maps loaded. Loading borders…");
 
-    // ð GeoJSON borders with fixed color & width
-    fetch('jkl.json').then(r=>{
-      if(!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json();
-    }).then(data=>{
-      const style = { color:'#D0C0CA', weight:1.5, opacity:1, fill:false }; // fixed width
-      const border1 = L.geoJSON(data,{style}).addTo(map1);
-      const border2 = L.geoJSON(data,{style}).addTo(map2);
+// OSM-style border settings
+const borderColor = '#B0A0AA';
+const dashPattern = '5,3';
+const baseWeight = 1.5;
 
-      map1.fitBounds(border1.getBounds(), { padding:[20,20] });
-      map2.fitBounds(border2.getBounds(), { padding:[20,20] });
+function geoJsonStyle(weightOverride) {
+  return { color: borderColor, weight: weightOverride || baseWeight, opacity:1, fill:false, dashArray: dashPattern };
+}
 
-      setStatus("â Borders loaded successfully.");
-      setTimeout(()=>statusBox.style.display="none",2000);
-    }).catch(err=>{
-      console.warn("GeoJSON load failed:", err);
-      setStatus("â ï¸ Border data missing or failed to load. Maps loaded fine.",true);
-    });
+let changeLog = [];
 
-    // ð Style switch events
-    document.querySelectorAll('input[name="osm-style"]').forEach(radio=>{
-      radio.addEventListener('change', e=>{
-        Object.values(osmLayers).forEach(l=>map1.removeLayer(l));
-        osmLayers[e.target.value].addTo(map1);
-      });
-    });
+// Fetch GeoJSON borders
+fetch('jkl.json').then(r=>{
+  if(!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}).then(data=>{
+  const border1 = L.geoJSON(data, geoJsonStyle()).addTo(map1);
+  const border2 = L.geoJSON(data, geoJsonStyle()).addTo(map2);
 
-    document.querySelectorAll('input[name="ofm-style"]').forEach(radio=>{
-      radio.addEventListener('change', e=>{
-        Object.values(ofmLayers).forEach(l=>map2.removeLayer(l));
-        ofmLayers[e.target.value].addTo(map2);
-      });
-    });
+  map1.fitBounds(border1.getBounds(), { padding:[20,20] });
+  map2.fitBounds(border2.getBounds(), { padding:[20,20] });
 
-    // ð Fullscreen toggle
-    const osmBox = document.getElementById('osm-box');
-    const ofmBox = document.getElementById('ofm-box');
-    let osmFull = false, ofmFull = false;
+  function updateWeight(layer, map) {
+    let zoomVal = map.getZoom();
+    const manualZoom = parseFloat(document.getElementById('zoom-input').value);
+    if(!isNaN(manualZoom)) zoomVal = manualZoom;
+    let lineVal = parseFloat(document.getElementById('line-input').value) || baseWeight;
+    const newWeight = lineVal * Math.pow(2, 4 - zoomVal);
+    layer.setStyle({weight:newWeight});
+    // Log the change
+    const logEntry = `Zoom: ${zoomVal}, Line Width: ${newWeight.toFixed(2)}`;
+    changeLog.push(logEntry);
+    document.getElementById('log-box').value = changeLog.join("\n");
+  }
 
-    document.getElementById('osm-label').addEventListener('click', ()=>{
-      osmFull = !osmFull;
-      if(osmFull){ osmBox.classList.add('fullscreen'); ofmBox.style.display='none'; }
-      else{ osmBox.classList.remove('fullscreen'); ofmBox.style.display='flex'; map1.invalidateSize(); }
-      map1.invalidateSize();
-    });
+  map1.on('zoomend', ()=>updateWeight(border1, map1));
+  map2.on('zoomend', ()=>updateWeight(border2, map2));
 
-    document.getElementById('ofm-label').addEventListener('click', ()=>{
-      ofmFull = !ofmFull;
-      if(ofmFull){ ofmBox.classList.add('fullscreen'); osmBox.style.display='none'; }
-      else{ ofmBox.classList.remove('fullscreen'); osmBox.style.display='flex'; map2.invalidateSize(); }
-      map2.invalidateSize();
-    });
-  </script>
+  updateWeight(border1,map1);
+  updateWeight(border2,map2);
+
+  setStatus("✅ Borders loaded successfully.");
+  setTimeout(()=>statusBox.style.display="none",2000);
+}).catch(err=>{
+  console.warn("GeoJSON load failed:", err);
+  setStatus("⚠️ Border data missing or failed to load. Maps loaded fine.",true);
+});
+
+// Style switch
+document.querySelectorAll('input[name="osm-style"]').forEach(radio=>{
+  radio.addEventListener('change', e=>{
+    Object.values(osmLayers).forEach(l=>map1.removeLayer(l));
+    osmLayers[e.target.value].addTo(map1);
+  });
+});
+document.querySelectorAll('input[name="ofm-style"]').forEach(radio=>{
+  radio.addEventListener('change', e=>{
+    Object.values(ofmLayers).forEach(l=>map2.removeLayer(l));
+    ofmLayers[e.target.value].addTo(map2);
+  });
+});
+
+// Fullscreen toggles
+const osmBox = document.getElementById('osm-box');
+const ofmBox = document.getElementById('ofm-box');
+let osmFull = false, ofmFull = false;
+document.getElementById('osm-label').addEventListener('click', ()=>{
+  osmFull = !osmFull;
+  if(osmFull){ osmBox.classList.add('fullscreen'); ofmBox.style.display='none'; }
+  else{ osmBox.classList.remove('fullscreen'); ofmBox.style.display='flex'; map1.invalidateSize(); }
+  map1.invalidateSize();
+});
+document.getElementById('ofm-label').addEventListener('click', ()=>{
+  ofmFull = !ofmFull;
+  if(ofmFull){ ofmBox.classList.add('fullscreen'); osmBox.style.display='none'; }
+  else{ ofmBox.classList.remove('fullscreen'); osmBox.style.display='flex'; map2.invalidateSize(); }
+  map2.invalidateSize();
+});
+
+// Manual control listeners
+document.getElementById('zoom-input').addEventListener('input', ()=>{
+  map1.fire('zoomend'); map2.fire('zoomend');
+});
+document.getElementById('line-input').addEventListener('input', ()=>{
+  map1.fire('zoomend'); map2.fire('zoomend');
+});
+
+// Save log button
+document.getElementById('save-btn').addEventListener('click', ()=>{
+  const blob = new Blob([changeLog.join("\n")], {type:"text/plain"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download="border-log.txt"; a.click();
+  URL.revokeObjectURL(url);
+});
+</script>
 </body>
 </html>
