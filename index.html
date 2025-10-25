@@ -74,7 +74,6 @@
       z-index: 2000;
     }
 
-    /* Fullscreen class */
     .fullscreen {
       position: fixed !important;
       top: 0 !important;
@@ -123,19 +122,17 @@
       statusBox.style.background = isError ? "rgba(200,0,0,0.7)" : "rgba(0,0,0,0.7)";
     }
 
-    // Common map config
     const center = [20,78];
     const zoom = 4;
 
     // 🌍 Map 1 – OpenStreetMap
     const map1 = L.map('map1', {zoomControl:true}).setView(center, zoom);
-
     let osmLayers = {
       standard: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'© OpenStreetMap' }).addTo(map1),
       satellite: L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { subdomains:['mt0','mt1','mt2','mt3'], maxZoom:19, attribution:'© Google Satellite' })
     };
 
-    // 🌍 Map 2 – OpenFreeMap (original link)
+    // 🌍 Map 2 – OpenFreeMap
     const map2 = L.map('map2', {zoomControl:true}).setView(center, zoom);
     let ofmLayers = {
       standard: L.tileLayer('https://tile.openfreemap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'© OpenFreeMap contributors' }).addTo(map2),
@@ -144,37 +141,17 @@
 
     setStatus("Maps loaded. Loading borders…");
 
-    // 🌟 GeoJSON border setup
-    const borderColor = '#666';
-
-    function geoJsonStyle() {
-      return {
-        color: borderColor,
-        weight: 2,       // base pixel width
-        opacity: 1,
-        fill: false
-      };
-    }
-
-    function updateBorderWidth(layer, map) {
-      // Keep border visually consistent at all zooms
-      const newWeight = 2 / Math.pow(2, map.getZoom() - 4); // tweak divisor for consistency
-      layer.setStyle({ weight: newWeight });
-    }
-
+    // 🌟 GeoJSON borders with fixed color & width
     fetch('jkl.json').then(r=>{
       if(!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
     }).then(data=>{
-      const border1 = L.geoJSON(data, geoJsonStyle()).addTo(map1);
-      const border2 = L.geoJSON(data, geoJsonStyle()).addTo(map2);
+      const style = { color:'#D0C0CA', weight:1.5, opacity:1, fill:false }; // fixed width
+      const border1 = L.geoJSON(data,{style}).addTo(map1);
+      const border2 = L.geoJSON(data,{style}).addTo(map2);
 
       map1.fitBounds(border1.getBounds(), { padding:[20,20] });
       map2.fitBounds(border2.getBounds(), { padding:[20,20] });
-
-      // Update weight dynamically on zoom
-      map1.on('zoomend', ()=>updateBorderWidth(border1, map1));
-      map2.on('zoomend', ()=>updateBorderWidth(border2, map2));
 
       setStatus("✅ Borders loaded successfully.");
       setTimeout(()=>statusBox.style.display="none",2000);
@@ -198,7 +175,7 @@
       });
     });
 
-    // 🌟 Fullscreen toggle on label click
+    // 🌟 Fullscreen toggle
     const osmBox = document.getElementById('osm-box');
     const ofmBox = document.getElementById('ofm-box');
     let osmFull = false, ofmFull = false;
