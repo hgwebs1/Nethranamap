@@ -144,16 +144,38 @@
 
     setStatus("Maps loaded. Loading borders…");
 
-    // Load GeoJSON asynchronously
+    // 🌟 GeoJSON border setup
+    const borderColor = '#666';
+
+    function geoJsonStyle() {
+      return {
+        color: borderColor,
+        weight: 2,       // base pixel width
+        opacity: 1,
+        fill: false
+      };
+    }
+
+    function updateBorderWidth(layer, map) {
+      // Keep border visually consistent at all zooms
+      const newWeight = 2 / Math.pow(2, map.getZoom() - 4); // tweak divisor for consistency
+      layer.setStyle({ weight: newWeight });
+    }
+
     fetch('jkl.json').then(r=>{
       if(!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
     }).then(data=>{
-      const style = { color:'#666', weight:1.3, opacity:1, fill:false };
-      const border1 = L.geoJSON(data,{style}).addTo(map1);
-      const border2 = L.geoJSON(data,{style}).addTo(map2);
+      const border1 = L.geoJSON(data, geoJsonStyle()).addTo(map1);
+      const border2 = L.geoJSON(data, geoJsonStyle()).addTo(map2);
+
       map1.fitBounds(border1.getBounds(), { padding:[20,20] });
       map2.fitBounds(border2.getBounds(), { padding:[20,20] });
+
+      // Update weight dynamically on zoom
+      map1.on('zoomend', ()=>updateBorderWidth(border1, map1));
+      map2.on('zoomend', ()=>updateBorderWidth(border2, map2));
+
       setStatus("✅ Borders loaded successfully.");
       setTimeout(()=>statusBox.style.display="none",2000);
     }).catch(err=>{
