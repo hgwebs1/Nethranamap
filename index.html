@@ -3,37 +3,132 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dual Line OSM Borders – Fixed JSON & Collapsible Panel</title>
+<title>Map Log Maker</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <style>
 html, body { margin:0; padding:0; height:100%; width:100%; font-family: system-ui, sans-serif; background:#f0f0f0; }
+.map-container { display:flex; flex-direction:column; height:100vh; width:100vw; }
+.map-box { flex:1; position:relative; }
 
-.map-container { display:flex; flex-direction:column; height:100vh; width:100vw; transition: all 0.4s ease; }
-.map-box { flex:1; position:relative; transition: all 0.3s ease; }
-.map-label { position:absolute; top:10px; left:10px; background: rgba(0,0,0,0.6); color:white; padding:6px 10px; border-radius:8px; font-size:14px; z-index:1001; cursor:pointer; user-select:none; }
-.map-label:hover { background: rgba(0,0,0,0.8); }
-.style-selector { position:absolute; top:10px; right:10px; background: rgba(255,255,255,0.9); border-radius:8px; padding:8px 10px; font-size:13px; z-index:1002; }
-.style-selector label { margin-right:8px; cursor:pointer; }
+#zoom-control {
+  position:absolute;
+  top:10px;
+  left:50%;
+  transform: translateX(-50%);
+  z-index:1002;
+  background: rgba(255,255,255,0.9);
+  padding:8px 12px;
+  border-radius:8px;
+  font-size:14px;
+  text-align:center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
 #status { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 6px 12px; border-radius: 6px; font-size: 13px; z-index: 2000; }
 
-.fullscreen { position: fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; z-index: 9999; border: none !important; }
+#control-panel {
+  position: fixed;
+  top:50px;
+  right:0;
+  width:0%;
+  height:calc(100% - 50px);
+  background:rgba(255,255,255,0.95);
+  border-left:2px solid #ccc;
+  z-index:1500;
+  transition: width 0.3s ease;
+  padding:20px;
+  overflow:auto;
+  font-size:14px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  box-sizing:border-box;
+}
 
-/* Side Overlay Panel */
-#control-panel { position: fixed; top:0; right:0; width:0%; height:100%; background:rgba(255,255,255,0.95); border-left:2px solid #ccc; z-index:1500; transition: width 0.3s ease; padding:10px; overflow:auto; font-size:14px; }
-#control-panel.open { width:25%; }
-#control-panel h3 { margin-top:0; }
-#control-panel input { width:60px; margin-right:10px; margin-bottom:5px; }
-#log-box, #per-change-box { width:100%; font-size:12px; margin-top:6px; }
-#log-box { height:200px; }
-#per-change-box { height:150px; }
-#toggle-panel { position: fixed; top:10px; right:0; z-index:1600; cursor:pointer; background:#333; color:white; padding:6px 10px; border-radius:4px 0 0 4px; }
+#control-panel.open { width:40%; }
 
-@media(max-width:768px){ 
-  .map-label{font-size:12px;padding:4px 8px;} 
-  .style-selector{font-size:11px;} 
-  #control-panel.open{width:50%;} 
-  #toggle-panel{padding:4px 6px;}
+#control-panel h3 { margin-top:0; text-align:center; }
+
+.panel-input {
+  width:90%;
+  margin:10px 0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+
+.panel-input label {
+  margin-bottom:4px;
+  font-weight:500;
+  text-align:center;
+}
+
+.panel-input input {
+  width:100%;
+  padding:6px 8px;
+  border:1px solid #ccc;
+  border-radius:4px;
+  text-align:center;
+}
+
+#save-btn {
+  margin:12px 0 6px 0;
+  padding:8px 14px;
+  border:none;
+  background:#2196F3;
+  color:white;
+  font-weight:600;
+  border-radius:6px;
+  cursor:pointer;
+  width:90%;
+  transition: background 0.3s;
+}
+
+#save-btn:hover { background:#1976D2; }
+
+#log-box {
+  width:95%;
+  font-size:12px;
+  height:200px;
+  margin-bottom:12px;
+  padding:6px;
+  border:1px solid #ccc;
+  border-radius:6px;
+  resize:none;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.download-btn {
+  width:90%;
+  padding:10px;
+  border:none;
+  background:#4CAF50;
+  color:white;
+  font-weight:600;
+  border-radius:6px;
+  cursor:pointer;
+  font-size:14px;
+  margin-bottom:6px;
+  transition: background 0.3s;
+}
+
+.download-btn:hover { background:#45a049; }
+
+#toggle-panel {
+  position: fixed;
+  top:10px;
+  right:0;
+  z-index:1600;
+  cursor:pointer;
+  background:#333;
+  color:white;
+  padding:6px 10px;
+  border-radius:4px 0 0 4px;
+}
+
+@media(max-width:768px){
+  #control-panel.open { width:43%; }
 }
 </style>
 </head>
@@ -41,37 +136,35 @@ html, body { margin:0; padding:0; height:100%; width:100%; font-family: system-u
 
 <div class="map-container">
   <div class="map-box" id="osm-box">
-    <div class="map-label" id="osm-label">🗺️ OpenStreetMap</div>
-    <div class="style-selector" id="osm-style">
-      <label><input type="radio" name="osm-style" value="standard" checked> Standard</label>
-      <label><input type="radio" name="osm-style" value="satellite"> Satellite</label>
+    <div id="zoom-control">
+      Zoom: <input type="number" id="zoom-input" min="0" max="19" value="4">
     </div>
     <div id="map1" style="height:100%; width:100%;"></div>
   </div>
-  <div class="map-box" id="ofm-box">
-    <div class="map-label" id="ofm-label">🌐 OpenFreeMap</div>
-    <div class="style-selector" id="ofm-style">
-      <label><input type="radio" name="ofm-style" value="standard" checked> Standard</label>
-      <label><input type="radio" name="ofm-style" value="satellite"> Satellite</label>
-    </div>
-    <div id="map2" style="height:100%; width:100%;"></div>
-  </div>
 </div>
 
-<div id="status">Loading maps…</div>
-
-<!-- Side Panel -->
+<div id="status">Loading map…</div>
 <div id="toggle-panel">☰ Panel</div>
 <div id="control-panel">
   <h3>Border Control</h3>
-  <div>Zoom Level: <input type="number" id="zoom-input" min="1" max="19" value="4"></div>
-  <div>Purple Width: <input type="number" id="purple-width" step="0.1" value="3"></div>
-  <div>Black Width: <input type="number" id="black-width" step="0.1" value="1"></div>
-  <button id="save-btn">Download Total Log</button>
-  <h4>Total Log:</h4>
+
+  <div class="panel-input">
+    <label for="purple-width">Purple Width</label>
+    <input type="number" id="purple-width" step="0.1" value="3">
+  </div>
+
+  <div class="panel-input">
+    <label for="black-width">Black Width</label>
+    <input type="number" id="black-width" step="0.1" value="1">
+  </div>
+
+  <button id="save-btn">Save Log</button>
+
+  <h4>Log Box:</h4>
   <textarea id="log-box" readonly></textarea>
-  <h4>Per-Change Log:</h4>
-  <textarea id="per-change-box" readonly></textarea>
+
+  <button class="download-btn" id="download-btn-1">Download JSON</button>
+  <button class="download-btn" id="download-btn-2">Download TXT</button>
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -85,127 +178,123 @@ function setStatus(msg, isError=false){
 // Map setup
 const center = [20,78];
 const zoom = 4;
-const map1 = L.map('map1',{zoomControl:true}).setView(center, zoom);
-const map2 = L.map('map2',{zoomControl:true}).setView(center, zoom);
+const map1 = L.map('map1',{
+  zoomControl:true,
+  scrollWheelZoom:true,
+  touchZoom:false,
+  attributionControl:false
+}).setView(center, zoom);
 
-const osmLayers = {
-  standard:L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map1),
-  satellite:L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{subdomains:['mt0','mt1','mt2','mt3'], maxZoom:19, attribution:'© Google Satellite'})
-};
-const ofmLayers = {
-  standard:L.tileLayer('https://tile.openfreemap.org/{z}/{x}/{y}.png',{maxZoom:19, attribution:'© OpenFreeMap contributors'}).addTo(map2),
-  satellite:L.tileLayer('https://tiles.freemap.sk/S/{z}/{x}/{y}.png',{maxZoom:19, attribution:'© Freemap Slovakia / OSM'})
-};
+const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom:19
+}).addTo(map1);
 
-setStatus("Maps loaded. Loading borders…");
+setStatus("Map loaded. Loading borders…");
 
-let totalLog=[], perChangeLog=[];
-let border1_purple, border1_black, border2_purple, border2_black;
+let pendingLog=[];
+let border_purple, border_black;
 
-// Style functions
 function purpleStyle(weight){ return {color:'#B0A0AA', weight:weight, opacity:1, fill:false}; }
 function blackStyle(weight, zoom, purpleW){ 
   const dash = Math.max(2, (8 - zoom)*(purpleW/3)); 
   return {color:'#000000', weight:weight, opacity:1, fill:false, dashArray:`${dash},${dash}`}; 
 }
 
-// Fetch local JSON (ensure path correct, same folder jkl.json)
+// Fetch GeoJSON
 fetch('jkl.json')
 .then(r=>{if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json();})
 .then(data=>{
-  // Add layers to high zIndex pane
   map1.createPane('overlayTop'); map1.getPane('overlayTop').style.zIndex = 650;
-  map2.createPane('overlayTop'); map2.getPane('overlayTop').style.zIndex = 650;
 
   const pW = parseFloat(document.getElementById('purple-width').value);
   const bW = parseFloat(document.getElementById('black-width').value);
 
-  border1_purple = L.geoJSON(data, {style:purpleStyle(pW), pane:'overlayTop', interactive:false}).addTo(map1);
-  border1_black  = L.geoJSON(data, {style:blackStyle(bW,map1.getZoom(),pW), pane:'overlayTop', interactive:false}).addTo(map1);
+  border_purple = L.geoJSON(data, {style:purpleStyle(pW), pane:'overlayTop', interactive:false}).addTo(map1);
+  border_black  = L.geoJSON(data, {style:blackStyle(bW,map1.getZoom(),pW), pane:'overlayTop', interactive:false}).addTo(map1);
 
-  border2_purple = L.geoJSON(data, {style:purpleStyle(pW), pane:'overlayTop', interactive:false}).addTo(map2);
-  border2_black  = L.geoJSON(data, {style:blackStyle(bW,map2.getZoom(),pW), pane:'overlayTop', interactive:false}).addTo(map2);
+  map1.fitBounds(border_purple.getBounds(), {padding:[20,20]});
 
-  map1.fitBounds(border1_purple.getBounds(), {padding:[20,20]});
-  map2.fitBounds(border2_purple.getBounds(), {padding:[20,20]});
+  function updateBorders(){
+    let zoomVal = parseInt(document.getElementById('zoom-input').value);
+    if(isNaN(zoomVal) || zoomVal<0) zoomVal=0;
+    if(zoomVal>19) zoomVal=19;
 
-  function updateBorders(map,purple,black){
-    let zoomVal = map.getZoom();
-    const manualZoom = parseFloat(document.getElementById('zoom-input').value);
-    if(!isNaN(manualZoom)) zoomVal = manualZoom;
-
+    map1.setZoom(zoomVal);
     const purpleW = parseFloat(document.getElementById('purple-width').value);
     const blackW  = parseFloat(document.getElementById('black-width').value);
 
-    purple.setStyle({weight: purpleW * Math.pow(2,4 - zoomVal)});
-    black.setStyle(blackStyle(blackW * Math.pow(2,4 - zoomVal), zoomVal, purpleW));
-
-    const logEntry = `Zoom:${zoomVal}, Purple:${(purpleW*Math.pow(2,4-zoomVal)).toFixed(2)}, Black:${(blackW*Math.pow(2,4-zoomVal)).toFixed(2)}`;
-    totalLog.push(logEntry); perChangeLog.push(logEntry);
-    document.getElementById('log-box').value = totalLog.join("\n");
-    document.getElementById('per-change-box').value = perChangeLog.join("\n");
+    border_purple.setStyle({weight: purpleW * Math.pow(2,4 - zoomVal)});
+    border_black.setStyle(blackStyle(blackW * Math.pow(2,4 - zoomVal), zoomVal, purpleW));
   }
 
-  map1.on('zoomend', ()=>updateBorders(map1,border1_purple,border1_black));
-  map2.on('zoomend', ()=>updateBorders(map2,border2_purple,border2_black));
-  updateBorders(map1,border1_purple,border1_black);
-  updateBorders(map2,border2_purple,border2_black);
+  map1.on('zoomend', ()=>updateBorders());
+  updateBorders();
   setStatus("✅ Borders loaded successfully.");
 })
 .catch(err=>setStatus("⚠️ GeoJSON load failed. Check path.","true"));
 
-// Style switch
-document.querySelectorAll('input[name="osm-style"]').forEach(r=>{
-  r.addEventListener('change', e=>{
-    Object.values(osmLayers).forEach(l=>map1.removeLayer(l));
-    osmLayers[e.target.value].addTo(map1);
-  });
-});
-document.querySelectorAll('input[name="ofm-style"]').forEach(r=>{
-  r.addEventListener('change', e=>{
-    Object.values(ofmLayers).forEach(l=>map2.removeLayer(l));
-    ofmLayers[e.target.value].addTo(map2);
-  });
-});
-
-// Fullscreen toggles
-const osmBox = document.getElementById('osm-box');
-const ofmBox = document.getElementById('ofm-box');
-let osmFull=false, ofmFull=false;
-document.getElementById('osm-label').addEventListener('click', ()=>{
-  osmFull=!osmFull;
-  if(osmFull){ osmBox.classList.add('fullscreen'); ofmBox.style.display='none'; }
-  else{ osmBox.classList.remove('fullscreen'); ofmBox.style.display='flex'; map1.invalidateSize();}
-  map1.invalidateSize();
-});
-document.getElementById('ofm-label').addEventListener('click', ()=>{
-  ofmFull=!ofmFull;
-  if(ofmFull){ ofmBox.classList.add('fullscreen'); osmBox.style.display='none'; }
-  else{ ofmBox.classList.remove('fullscreen'); osmBox.style.display='flex'; map2.invalidateSize();}
-  map2.invalidateSize();
-});
-
-// Side panel toggle – 0% width when collapsed
+// Panel toggle
 const panel = document.getElementById('control-panel');
 document.getElementById('toggle-panel').addEventListener('click', ()=>{
   panel.classList.toggle('open');
-  map1.invalidateSize(); map2.invalidateSize();
+  map1.invalidateSize();
 });
 
-// Manual input listeners
-['zoom-input','purple-width','black-width'].forEach(id=>{
+// Zoom input
+const zoomInput = document.getElementById('zoom-input');
+zoomInput.addEventListener('input', ()=>{
+  let z = parseInt(zoomInput.value);
+  if(isNaN(z) || z<0) z=0;
+  if(z>19) z=19;
+  map1.setZoom(z);
+});
+
+// Border width input
+['purple-width','black-width'].forEach(id=>{
   document.getElementById(id).addEventListener('input', ()=>{
-    if(border1_purple){ map1.fire('zoomend'); map2.fire('zoomend'); }
+    if(border_purple){ map1.fire('zoomend'); }
   });
 });
 
-// Save total log
+// Save Log button → JSON format
 document.getElementById('save-btn').addEventListener('click', ()=>{
-  const blob = new Blob([totalLog.join("\n")], {type:'text/plain'});
+  const zoomVal = parseInt(document.getElementById('zoom-input').value);
+  const purpleW = parseFloat(document.getElementById('purple-width').value);
+  const blackW  = parseFloat(document.getElementById('black-width').value);
+
+  const logEntry = {
+    zoom: zoomVal,
+    purpleWidth: purpleW,
+    blackWidth: blackW
+  };
+  pendingLog.push(logEntry);
+
+  const logBox = document.getElementById('log-box');
+  logBox.value = JSON.stringify(pendingLog, null, 2);
+});
+
+// Download method 1
+document.getElementById('download-btn-1').addEventListener('click', ()=>{
+  const logBox = document.getElementById('log-box');
+  const blob = new Blob([logBox.value], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href=url; a.download='border-total-log.txt';
-  a.click(); URL.revokeObjectURL(url);
+  a.href = url;
+  a.download = 'border-log-method1.json';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// Download method 2
+document.getElementById('download-btn-2').addEventListener('click', ()=>{
+  const logBox = document.getElementById('log-box');
+  const blob = new Blob([logBox.value], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'border-log-method2.txt';
+  a.click();
+  URL.revokeObjectURL(url);
 });
 </script>
 </body>
