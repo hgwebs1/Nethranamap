@@ -1,275 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>India Border Maker</title>
-<style>
-  html, body {
-    height: 100%; margin: 0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    background: #f9fafb;
-    display: flex; flex-direction: column;
-  }
-  header {
-    background:#2563eb; color:white; font-weight:600;
-    text-align:center; padding: 12px; user-select:none;
-  }
-  #mapContainer {
-    flex: 1; position: relative; overflow: hidden;
-  }
-  #googleMapIframe {
-    position: absolute; top:0; left:0; width:100%; height:100%; border:none;
-  }
-  #overlaySvg {
-    position: absolute; top:0; left:0; width:100%; height:100%;
-    pointer-events: auto; cursor: crosshair;
-  }
-  .smallIconButton {
-    position: absolute;
-    background: #2563eb;
-    border-radius: 4px;
-    width: 28px;
-    height: 28px;
-    border: none;
-    color: white;
-    font-size: 16px;
-    line-height: 28px;
-    text-align: center;
-    cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    user-select: none;
-  }
-  /* Position some main feature icons top right */
-  #btnUndo { top: 10px; right: 10px; }
-  #btnRedo { top: 50px; right: 10px; }
-  #btnDraw { top: 90px; right: 10px; }
-  #btnDensify { top: 130px; right: 10px; }
-  #btnApprove { top: 170px; right: 10px; }
-  #btnClear { top: 210px; right: 10px; }
-  
-  /* Bottom control bar for zoom/pan/download */
-  #bottomControls {
-    display: flex; justify-content: center; gap: 8px;
-    padding: 6px;
-    background: white;
-    box-shadow: 0 -2px 6px rgba(0,0,0,0.1);
-    user-select: none;
-  }
-  #bottomControls button {
-    all: unset;
-    background: #2563eb;
-    color:white;
-    width: 28px; height: 28px;
-    border-radius: 4px;
-    font-size: 18px;
-    text-align: center;
-    line-height: 28px;
-    cursor: pointer;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-  }
-  #bottomControls button:hover {
-    background: #1e40af;
-  }
-  #geojsonOutput {
-    width: 100%; height: 120px; font-family: monospace; font-size: 14px;
-    resize: none; padding: 8px; border-radius: 8px; border: 1px solid #d1d5db;
-    margin-top: 12px; box-sizing: border-box;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenFreeMap with Country Borders</title>
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-sA+4J8k3ybQ4C/Cp3Xg2ISkGQdYI8M3G9a0z1A9fZxE="
+    crossorigin=""
+  />
+
+  <style>
+    body, html { margin: 0; padding: 0; height: 100%; }
+    #map { width: 100%; height: 100vh; }
+  </style>
 </head>
 <body>
-<header>India Border Maker</header>
-<div id="mapContainer">
-  <iframe id="googleMapIframe" src="https://maps.google.com/maps?q=india&amp;t=&amp;z=5&amp;ie=UTF8&amp;iwloc=&amp;output=embed" allowfullscreen></iframe>
-  <svg id="overlaySvg"></svg>
-  
-  <!-- Small top right overlay buttons -->
-  <button class="smallIconButton" id="btnUndo" title="Undo">&#8630;</button>
-  <button class="smallIconButton" id="btnRedo" title="Redo">&#8631;</button>
-  <button class="smallIconButton" id="btnDraw" title="Toggle Draw Mode">&#9998;</button>
-  <button class="smallIconButton" id="btnDensify" title="Densify Line">&#8853;</button>
-  <button class="smallIconButton" id="btnApprove" title="Approve Line">&#10003;</button>
-  <button class="smallIconButton" id="btnClear" title="Clear">&#10006;</button>
-</div>
-<div id="bottomControls">
-  <button id="zoomIn" title="Zoom In">&#43;</button>
-  <button id="zoomOut" title="Zoom Out">&#8722;</button>
-  <button id="panLeft" title="Pan Left">&#8592;</button>
-  <button id="panRight" title="Pan Right">&#8594;</button>
-  <button id="panUp" title="Pan Up">&#8593;</button>
-  <button id="panDown" title="Pan Down">&#8595;</button>
-  <button id="btnDownload" title="Download GeoJSON">&#128190;</button>
-</div>
-<textarea id="geojsonOutput" placeholder="Your GeoJSON output will appear here..." readonly></textarea>
 
-<script>
-  // Globals
-  const svgNS = "http://www.w3.org/2000/svg";
-  const overlaySvg = document.getElementById('overlaySvg');
-  const geojsonOutput = document.getElementById('geojsonOutput');
+  <div id="map"></div>
 
-  let isDrawing = false;
-  let currentLinePoints = [];
-  let linesData = []; // approved lines GeoJSON features
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-o9N1j8REp2G7Wv1P3zJy5pr7rj3YpglE4+fR0VZJd9s="
+    crossorigin=""
+  ></script>
 
-  // Pixel bounds for the iframe and overlay for coordinate translation
-  let mapRect = null;
+  <script>
+    // Step 1: Create the map
+    const map = L.map('map').setView([20, 78], 4); // Center on India
 
-  // Get mouse position relative to SVG container
-  function getMousePos(evt) {
-    const CTM = overlaySvg.getScreenCTM();
-    return {
-      x: (evt.clientX - CTM.e) / CTM.a,
-      y: (evt.clientY - CTM.f) / CTM.d
-    };
-  }
+    // Step 2: Add OpenFreeMap tiles
+    L.tileLayer('https://tile.openfreemap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenFreeMap contributors'
+    }).addTo(map);
 
-  // Convert screen (pixel) points to approximate geographic (lat,long) - requires Google Maps API which iframe lacks,
-  // so for simplicity here we treat drawing in pixel space. To convert to lat/lng conversion you need embedded Google Maps JS API.
-  // Here we just output pixel GeoJSON for demonstration.
-  function pixelPointsToGeoJSON(points){
-    return {
-      type: "Feature",
-      geometry: {
-        type: "LineString",
-        coordinates: points.map(p => [p.x, p.y])
-      },
-      properties: {}
-    };
-  }
-
-  // Draw polyline SVG element from currentLinePoints
-  let polyline = document.createElementNS(svgNS, 'polyline');
-  polyline.setAttribute('fill', 'none');
-  polyline.setAttribute('stroke', '#ff6600');
-  polyline.setAttribute('stroke-width', '3');
-  overlaySvg.appendChild(polyline);
-
-  function updatePolyline(){
-    let pointsStr = currentLinePoints.map(p => `${p.x},${p.y}`).join(' ');
-    polyline.setAttribute('points', pointsStr);
-  }
-
-  // Handle draw mode toggle
-  document.getElementById('btnDraw').addEventListener('click', () => {
-    isDrawing = !isDrawing;
-    if(isDrawing){
-      currentLinePoints = [];
-      updatePolyline();
-      geojsonOutput.value = '';
-      overlaySvg.style.cursor = 'crosshair';
-    } else if(currentLinePoints.length > 1){
-      linesData.push(pixelPointsToGeoJSON(currentLinePoints));
-      geojsonOutput.value = JSON.stringify({type: "FeatureCollection", features: linesData}, null, 2);
-    }
-  });
-
-  // Capture clicks to add points if drawing mode active
-  overlaySvg.addEventListener('click', evt => {
-    if(!isDrawing) return;
-    const pos = getMousePos(evt);
-    currentLinePoints.push(pos);
-    updatePolyline();
-  });
-
-  // Undo function: remove last point from current line or last complete line
-  document.getElementById('btnUndo').addEventListener('click', () => {
-    if(isDrawing){
-      currentLinePoints.pop();
-      updatePolyline();
-    } else if(linesData.length > 0){
-      linesData.pop();
-      geojsonOutput.value = JSON.stringify({type:"FeatureCollection", features: linesData}, null, 2);
-    }
-  });
-
-  // Redo is not supported in this simple example
-
-  // Clear all lines and drawing
-  document.getElementById('btnClear').addEventListener('click', () => {
-    currentLinePoints = [];
-    linesData = [];
-    updatePolyline();
-    geojsonOutput.value = '';
-  });
-
-  // Densify lines - add midpoint between every two coordinates
-  document.getElementById('btnDensify').addEventListener('click', () => {
-    function densifyCoords(coords){
-      let densified = [];
-      for(let i=0;i<coords.length-1;i++){
-        densified.push(coords[i]);
-        let midX = (coords[i][0] + coords[i+1][0]) / 2;
-        let midY = (coords[i][1] + coords[i+1][1]) / 2;
-        densified.push([midX, midY]);
-      }
-      densified.push(coords[coords.length -1]);
-      return densified;
-    }
-    if(isDrawing){
-      const coords = currentLinePoints.map(p => [p.x, p.y]);
-      const densifiedCoords = densifyCoords(coords);
-      currentLinePoints = densifiedCoords.map(c => ({x:c[0], y:c[1]}));
-      updatePolyline();
-    } else if(linesData.length > 0){
-      linesData = linesData.map(f => {
-        return {...f, geometry:{...f.geometry, coordinates: densifyCoords(f.geometry.coordinates)}};
-      });
-      geojsonOutput.value = JSON.stringify({type: "FeatureCollection", features: linesData}, null, 2);
-    }
-  });
-
-  // Approve current drawing as a completed line
-  document.getElementById('btnApprove').addEventListener('click', () => {
-    if(currentLinePoints.length < 2){
-      alert('Draw at least two points before approving');
-      return;
-    }
-    linesData.push(pixelPointsToGeoJSON(currentLinePoints));
-    currentLinePoints = [];
-    updatePolyline();
-    geojsonOutput.value = JSON.stringify({type:"FeatureCollection", features: linesData}, null, 2);
-    isDrawing = false;
-    overlaySvg.style.cursor = 'default';
-  });
-
-  // Download GeoJSON
-  document.getElementById('btnDownload').addEventListener('click', () => {
-    const blob = new Blob([geojsonOutput.value], {type: 'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'india-borders.geojson';
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-
-  // Zoom/pan buttons affecting iframe (simple scroll handlers)
-  const iframe = document.getElementById('googleMapIframe');
-  let zoomLevel = 5;
-  function updateIframeSrc(){
-    iframe.src = `https://maps.google.com/maps?q=india&t=&z=${zoomLevel}&ie=UTF8&iwloc=&output=embed`;
-  }
-  document.getElementById('zoomIn').addEventListener('click', () => {
-    if(zoomLevel < 20) zoomLevel++;
-    updateIframeSrc();
-  });
-  document.getElementById('zoomOut').addEventListener('click', () => {
-    if(zoomLevel > 1) zoomLevel--;
-    updateIframeSrc();
-  });
-  // Pan left-right/up-down simply reload map at shifts (approximation)
-  let centerLat = 22; // Approx initial values
-  let centerLng = 79;
-  function pan(deltaLat, deltaLng){
-    centerLat += deltaLat;
-    centerLng += deltaLng;
-    iframe.src = `https://maps.google.com/maps?q=${centerLat},${centerLng}&t=&z=${zoomLevel}&ie=UTF8&iwloc=&output=embed`;
-  }
-  document.getElementById('panLeft').addEventListener('click', () => { pan(0, -1); });
-  document.getElementById('panRight').addEventListener('click', () => { pan(0, 1); });
-  document.getElementById('panUp').addEventListener('click', () => { pan(1, 0); });
-  document.getElementById('panDown').addEventListener('click', () => { pan(-1, 0); });
-
-</script>
+    // Step 3: Load your GeoJSON (country borders)
+    fetch('jkl.json')
+      .then(response => response.json())
+      .then(data => {
+        // Step 4: Add the GeoJSON layer
+        L.geoJSON(data, {
+          style: function (feature) {
+            return {
+              color: '#888888',     // OpenFreeMap-style border color (light gray)
+              weight: 1.2,          // similar to OSM/OFM country borders
+              opacity: 1,
+              fill: false
+            };
+          }
+        }).addTo(map);
+      })
+      .catch(err => console.error('GeoJSON load error:', err));
+  </script>
 </body>
 </html>
